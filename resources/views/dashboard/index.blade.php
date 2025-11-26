@@ -53,12 +53,6 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs mb-1">Via</label>
-                    <input type="text" name="via" value="{{ request('via') }}"
-                        class="p-2 border rounded w-full">
-                </div>
-
-                <div>
                     <label class="block text-xs mb-1">Anno</label>
                     <input type="number" name="anno" value="{{ request('anno') }}"
                         class="p-2 border rounded w-full">
@@ -394,7 +388,7 @@
                 </td>
 
                 <td class="py-2.5 px-4 text-gray-700">
-                    {{ $p->rich_cognome1 }} {{ $p->rich_nome1 }}
+                    {{ $p->richiedenti_completi }}
                 </td>
 
                 <td class="py-2.5 px-4 text-gray-600 text-[13px]">
@@ -451,10 +445,6 @@
     </div>
 
 </div>
-
-        <div class="mt-3">
-            {{ $pratiche->links() }}
-        </div>
 
     </div>
 

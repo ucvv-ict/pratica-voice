@@ -35,5 +35,23 @@ class Pratica extends Model
         'pratica_id',
         'cartella',
     ];
+
+    public function getRichiedentiCompletiAttribute()
+    {
+        $lista = [];
+
+        if ($this->rich_cognome1 || $this->rich_nome1) {
+            $lista[] = trim($this->rich_cognome1 . ' ' . $this->rich_nome1);
+        }
+        if ($this->rich_cognome2 || $this->rich_nome2) {
+            $lista[] = trim($this->rich_cognome2 . ' ' . $this->rich_nome2);
+        }
+        if ($this->rich_cognome3 || $this->rich_nome3) {
+            $lista[] = trim($this->rich_cognome3 . ' ' . $this->rich_nome3);
+        }
+
+        return implode(', ', $lista);
+    }
+
 }
 

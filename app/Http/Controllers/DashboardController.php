@@ -204,7 +204,7 @@ class DashboardController extends Controller
         * ------------------------------------------------- */
 
         $filterSections = [
-            'base' => ['q', 'cognome', 'via', 'anno', 'numero_pratica'],
+            'base' => ['q', 'cognome', 'anno', 'numero_pratica'],
             'pratica' => ['tipo', 'riferimento_libero', 'nota'],
             'loco' => ['via', 'civico'],
             'catasto' => ['foglio', 'particella_sub'],
