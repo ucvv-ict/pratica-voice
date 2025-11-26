@@ -40,7 +40,14 @@
     </div>
 @endif
 
-<a href="/dashboard" class="btn btn-secondary mb-3">⬅ Torna alla dashboard</a>
+<a href="#" onclick="returnToDashboard()" class="btn btn-secondary mb-3">⬅ Torna alla dashboard</a>
+
+<script>
+function returnToDashboard() {
+    const qs = localStorage.getItem('dashboardReturn') || '';
+    window.location = '/dashboard' + qs;
+}
+</script>
 
 <h1 class="mb-0">Pratica {{ $p->numero_pratica }}</h1>
 <h4 class="text-muted">{{ $p->oggetto }}</h4>
@@ -228,14 +235,9 @@ const zipForm = document.querySelector('form[action$="/zip"]');
 const zipBtn = document.getElementById('zipBtn');
 
 function refreshZipButton() {
-    const checkboxes = [...document.querySelectorAll('.pdf-check')];
-    const selected = checkboxes.filter(cb => cb.checked).length;
-
-    // aggiorna numero nel bottone
-    document.getElementById('zipCount').textContent = selected;
-
-    // abilita/disabilita il bottone
-    zipBtn.disabled = (selected === 0);
+    const anyChecked = [...document.querySelectorAll('.pdf-check')]
+        .some(cb => cb.checked);
+    zipBtn.disabled = !anyChecked;
 }
 
 // Seleziona tutti
@@ -250,7 +252,7 @@ document.getElementById('deselectAll').onclick = () => {
     refreshZipButton();
 };
 
-// Aggiorna ad ogni click
+// Aggiorna stato bottoni ad ogni checkbox
 document.querySelectorAll('.pdf-check').forEach(cb => {
     cb.addEventListener('change', refreshZipButton);
 });
@@ -260,13 +262,13 @@ zipForm.addEventListener('submit', () => {
     const loader = document.getElementById('zipLoading');
     if (loader) loader.classList.remove('d-none');
 
-    // Spegni spinner dopo 4 secondi
+    // Spegni spinner dopo 4 secondi (il download parte in questo tempo)
     setTimeout(() => {
         if (loader) loader.classList.add('d-none');
     }, 4000);
 });
 
-// Stato iniziale coerente
+// Inizializza lo stato corretto
 refreshZipButton();
 </script>
 @endif

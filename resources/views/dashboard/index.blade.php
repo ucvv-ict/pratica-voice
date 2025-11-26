@@ -266,13 +266,24 @@
     
     
 
-    {{-- 🧹 Reset --}}
     <div class="mt-3">
-        <a href="/dashboard"
+        <a href="#" 
+        onclick="resetDashboardFilters()"
         class="inline-block bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded shadow">
             🔄 Reset filtri
         </a>
     </div>
+
+    <script>
+    function resetDashboardFilters() {
+        // 🔥 Cancella filtri salvati
+        localStorage.removeItem('dashboardFilters');
+        localStorage.removeItem('dashboardReturn');
+
+        // 🔥 Vai alla dashboard pulita
+        window.location = '/dashboard';
+    }
+    </script>
 
     {{-- 📊 Tabella risultati --}}
     <div class="mt-6 bg-white shadow rounded p-4">
@@ -417,15 +428,18 @@
                         @php $first = $p->pdf_hits[0] ?? null; @endphp
 
                         <a href="/pratica/{{ $p->id }}?pdf={{ request('pdf') }}&file={{ urlencode($first) }}"
+                            onclick="localStorage.setItem('dashboardReturn', window.location.search)"
                            class="inline-flex items-center gap-1 bg-yellow-300 hover:bg-yellow-400 text-black text-xs px-3 py-1 rounded-full transition shadow"
                            title="Trovato in {{ count($p->pdf_hits) }} documento/i">
                             🔎 {{ count($p->pdf_hits) }}
                         </a>
 
+                        
                     @else
 
                         <a href="/pratica/{{ $p->id }}"
-                           class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 rounded-full transition shadow">
+                        onclick="localStorage.setItem('dashboardReturn', window.location.search)"
+                        class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 rounded-full transition shadow">
                             Apri →
                         </a>
 
@@ -449,4 +463,28 @@
     </div>
 
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const dashboardForm = document.querySelector('form[method="GET"]');
+
+    if (!dashboardForm) return;
+
+    // 🔹 Al submit → salva i filtri nel localStorage
+    dashboardForm.addEventListener('submit', () => {
+        const filters = Object.fromEntries(new FormData(dashboardForm));
+        localStorage.setItem('dashboardFilters', JSON.stringify(filters));
+    });
+
+    // 🔹 Se ci sono filtri salvati e NON abbiamo query string → li ripristiniamo
+    const saved = localStorage.getItem('dashboardFilters');
+
+    if (saved && Object.keys(Object.fromEntries(new URLSearchParams(window.location.search))).length === 0) {
+        const params = JSON.parse(saved);
+        const query = new URLSearchParams(params).toString();
+        window.location = window.location.pathname + "?" + query;
+    }
+});
+</script>
+
 @endsection
