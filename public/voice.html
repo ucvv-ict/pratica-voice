@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Ricerca Pratiche — Assistente Vocale</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        #results { margin-top: 20px; }
+        .item {
+            padding: 10px;
+            background: #fff;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        #log {
+            margin-top: 20px;
+            background: #eef;
+            padding: 10px;
+            border-radius: 6px;
+            white-space: pre-line;
+            min-height: 120px;
+        }
+        #start {
+            padding: 10px 20px;
+            font-size: 18px;
+            background: #007bff;
+            color: #fff;
+            border: 0;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🎤 Assistente Vocale — Ricerca Pratiche</h1>
+<button id="start">🎙 Avvia riconoscimento vocale</button>
+
+<p id="heard"></p>
+
+<h3>📝 Log conversazione</h3>
+<div id="log"></div>
+
+<div id="results"></div>
+
+<script>
+    const startButton = document.getElementById("start");
+    const heard = document.getElementById("heard");
+    const resultsDiv = document.getElementById("results");
+    const logDiv = document.getElementById("log");
+
+    function log(text) {
+        logDiv.innerText += text + "\n";
+    }
+
+    // --- Riconoscimento vocale ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "it-IT";
+    recognition.interimResults = false;
+
+    startButton.onclick = () => recognition.start();
+
+    recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript.trim();
+        heard.innerHTML = "🔎 Hai detto: <b>" + text + "</b>";
+        log("👂 Utente: " + text);
+        speak("Ok, un attimo...");
+
+        processQuery(text);
+    };
+
+    // --- Invio query alla nostra API di interpretazione (ChatGPT) ---
+    async function processQuery(text) {
+    log("🤖 Interpreto la frase...");
+
+    const r = await fetch("/api/interpret?q=" + encodeURIComponent(text));
+    const data = await r.json();
+
+    log("🤖 Interpretazione: " + JSON.stringify(data, null, 2));
+
+    if (data.error) {
+        speak("Non ho capito la frase.");
+        return;
+    }
+
+    if (data.action === "search") {
+        runSearch(data.filters);
+    }
+}
+
+
+    // --- Gestione filtri ---
+    async function runSearch(filters) {
+
+        let url = "/api/cerca?";
+
+        if (filters.cognome) {
+            url += "q=" + filters.cognome;
+            log("🔍 Filtro cognome: " + filters.cognome);
+        }
+
+        if (filters.numero_pratica) {
+            url += "q=" + filters.numero_pratica;
+            log("🔍 Filtro numero pratica: " + filters.numero_pratica);
+        }
+
+        if (filters.anno_presentazione) {
+            url += "q=" + filters.anno_presentazione;
+            log("🔍 Filtro anno: " + filters.anno_presentazione);
+        }
+
+        if (filters.oggetto) {
+            url += "q=" + filters.oggetto;
+            log("🔍 Filtro oggetto: " + filters.oggetto);
+        }
+
+        const res = await fetch(url);
+        let data = await res.json();
+
+        // se ricerca per numero → filtriamo esatto
+        if (filters.numero_pratica) {
+            data = data.filter(p => p.numero_pratica == filters.numero_pratica);
+        }
+
+        renderResults(data);
+    }
+
+    // --- Mostra risultati ---
+    function renderResults(data) {
+        resultsDiv.innerHTML = "";
+
+        if (data.length === 0) {
+            speak("Nessuna pratica trovata.");
+            log("❌ Nessun risultato");
+            resultsDiv.innerHTML = "<p>Nessun risultato</p>";
+            return;
+        }
+
+        speak("Ho trovato " + data.length + " pratiche.");
+        log("✅ Trovate: " + data.length);
+
+        data.forEach(p => {
+            const div = document.createElement("div");
+            div.className = "item";
+            div.innerHTML = `
+                <b>Pratica ${p.numero_pratica}</b><br>
+                ${p.oggetto}<br>
+                ${p.area_circolazione || ''} ${p.civico_esponente || ''}
+            `;
+            resultsDiv.appendChild(div);
+        });
+    }
+
+    // --- Sintesi vocale ---
+    function speak(text) {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = "it-IT";
+        speechSynthesis.speak(utter);
+    }
+</script>
+
+</body>
+</html>
+
