@@ -9,6 +9,7 @@ Route::get('/pratica/{id}', [PraticaController::class, 'show']);
 
 Route::get('/dashboard', [DashboardController::class, 'index']);
 Route::get('/dashboard/search', [DashboardController::class, 'search']);
+Route::post('/pratica/{id}/zip', [\App\Http\Controllers\PraticaController::class, 'downloadZip']);
 
 
 Route::get('/', function () {

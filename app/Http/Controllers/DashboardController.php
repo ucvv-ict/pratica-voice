@@ -199,6 +199,37 @@ class DashboardController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        return view('dashboard.index', compact('pratiche'));
+        /* -------------------------------------------------
+        * 🔢 Conteggio filtri attivi per sezione (coerente con la UI)
+        * ------------------------------------------------- */
+
+        $filterSections = [
+            'base' => ['q', 'cognome', 'via', 'anno', 'numero_pratica'],
+            'pratica' => ['tipo', 'riferimento_libero', 'nota'],
+            'loco' => ['via', 'civico'],
+            'catasto' => ['foglio', 'particella_sub'],
+            'protocollo' => ['protocollo_da', 'protocollo_a', 'rilascio_da', 'rilascio_a'],
+            'pdfsec' => ['pdf'],
+        ];
+
+        $activePerSection = [];
+        $activeFilters = 0;
+
+        foreach ($filterSections as $section => $fields) {
+            $count = 0;
+            foreach ($fields as $f) {
+                if (request()->filled($f)) {
+                    $count++;
+                }
+            }
+            $activePerSection[$section] = $count;
+            $activeFilters += $count;
+        }
+
+        return view('dashboard.index', [
+            'pratiche' => $pratiche,
+            'activeFilters' => $activeFilters,
+            'activePerSection' => $activePerSection,
+        ]);
     }
 }

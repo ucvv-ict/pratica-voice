@@ -28,6 +28,18 @@
 
 <body class="p-4">
 
+@if(session('error'))
+    <div class="alert alert-danger">
+        ❌ {{ session('error') }}
+    </div>
+@endif
+
+@if(session('success'))
+    <div class="alert alert-success">
+        ✅ {{ session('success') }}
+    </div>
+@endif
+
 <a href="/dashboard" class="btn btn-secondary mb-3">⬅ Torna alla dashboard</a>
 
 <h1 class="mb-0">Pratica {{ $p->numero_pratica }}</h1>
@@ -160,27 +172,103 @@
         Nessun documento trovato nella cartella <b>{{ $p->cartella }}</b>.
     </p>
 @else
+<form method="POST" action="/pratica/{{ $p->id }}/zip">
+    @csrf
+
+    <div class="d-flex justify-content-between mb-2">
+        <button type="button" id="selectAll" class="btn btn-sm btn-secondary">
+            Seleziona tutti
+        </button>
+        <button type="button" id="deselectAll" class="btn btn-sm btn-secondary">
+            Deseleziona tutti
+        </button>
+
+        <div class="d-flex align-items-center gap-2">
+            <button type="submit" id="zipBtn" class="btn btn-sm btn-success" disabled>
+                📦 Scarica ZIP selezionati (<span id="zipCount">0</span>)
+            </button>
+            <span id="zipLoading" class="text-muted d-none">
+                <span class="spinner-border spinner-border-sm"></span>
+                Preparazione ZIP...
+            </span>
+        </div>
+    </div>
+
     <ul class="list-group mb-4">
         @foreach ($pdfFiles as $pdf)
             <li class="list-group-item d-flex justify-content-between align-items-center">
-                {{ $pdf['name'] }}
+
+                <div>
+                    <input type="checkbox"
+                        class="pdf-check"
+                        name="files[]"
+                        value="{{ $pdf['name'] }}">
+                    {{ $pdf['name'] }}
+                </div>
 
                 <div class="d-flex gap-2">
-                    {{-- Anteprima nel viewer --}}
                     <a href="{{ $pdf['url'] }}"
                        class="btn btn-sm btn-primary pdf-link">
                         👁️ Anteprima
                     </a>
 
-                    {{-- Apertura in nuova scheda --}}
                     <a href="{{ $pdf['url'] }}" target="_blank"
                        class="btn btn-sm btn-outline-secondary">
-                        🔗 Apri in nuova scheda
+                        🔗 Apri
                     </a>
                 </div>
+
             </li>
         @endforeach
     </ul>
+</form>
+
+<script>
+const zipForm = document.querySelector('form[action$="/zip"]');
+const zipBtn = document.getElementById('zipBtn');
+
+function refreshZipButton() {
+    const checkboxes = [...document.querySelectorAll('.pdf-check')];
+    const selected = checkboxes.filter(cb => cb.checked).length;
+
+    // aggiorna numero nel bottone
+    document.getElementById('zipCount').textContent = selected;
+
+    // abilita/disabilita il bottone
+    zipBtn.disabled = (selected === 0);
+}
+
+// Seleziona tutti
+document.getElementById('selectAll').onclick = () => {
+    document.querySelectorAll('.pdf-check').forEach(cb => cb.checked = true);
+    refreshZipButton();
+};
+
+// Deseleziona tutti
+document.getElementById('deselectAll').onclick = () => {
+    document.querySelectorAll('.pdf-check').forEach(cb => cb.checked = false);
+    refreshZipButton();
+};
+
+// Aggiorna ad ogni click
+document.querySelectorAll('.pdf-check').forEach(cb => {
+    cb.addEventListener('change', refreshZipButton);
+});
+
+// Spinner + spegnimento
+zipForm.addEventListener('submit', () => {
+    const loader = document.getElementById('zipLoading');
+    if (loader) loader.classList.remove('d-none');
+
+    // Spegni spinner dopo 4 secondi
+    setTimeout(() => {
+        if (loader) loader.classList.add('d-none');
+    }, 4000);
+});
+
+// Stato iniziale coerente
+refreshZipButton();
+</script>
 @endif
 
 @if (count($pdfFiles) > 0)
@@ -223,6 +311,7 @@
 <button class="btn btn-primary" onclick="window.location='/voice.html'">
     🎤 Cerca con la voce
 </button>
+
 
 </body>
 </html>

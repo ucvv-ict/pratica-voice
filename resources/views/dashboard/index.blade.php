@@ -5,7 +5,15 @@
 
 <div class="p-6 max-w-7xl mx-auto">
 
-    <h1 class="text-2xl font-bold mb-6">📁 Archivio Pratiche — Dashboard</h1>
+    <h1 class="text-2xl font-bold mb-6">
+        📁 Archivio Pratiche — Dashboard
+
+        @if($activeFilters > 0)
+            <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                {{ $activeFilters }} filtri attivi
+            </span>
+        @endif
+    </h1>
 
     {{-- 🔍 Barra filtri --}}
     <form method="GET" class="space-y-4 bg-gray-100 p-4 rounded" x-data="{ 
@@ -22,7 +30,14 @@
         <!-- 📌 Ricerca Base (sempre visibile) -->
         <!-- =============================== -->
         <div>
-            <h3 class="text-md font-bold">📌 Ricerca Base</h3>
+            <h3 class="text-md font-bold">
+                📌 Ricerca Base
+                @if(($activePerSection['base'] ?? 0) > 0)
+                    <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                        {{ $activePerSection['base'] }}
+                    </span>
+                @endif
+            </h3>
 
             <div class="grid grid-cols-6 gap-4 mt-2">
                 <div class="col-span-2">
@@ -64,7 +79,16 @@
         <div class="border p-3 rounded bg-white">
             <button type="button" @click="pratica = !pratica"
                     class="flex justify-between w-full text-left font-semibold">
-                📂 Dati Pratica
+
+                <span>
+                    📂 Dati Pratica
+                    @if(($activePerSection['pratica'] ?? 0) > 0)
+                        <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                            {{ $activePerSection['pratica'] }}
+                        </span>
+                    @endif
+                </span>
+
                 <span x-text="pratica ? '▲' : '▼'"></span>
             </button>
 
@@ -100,7 +124,16 @@
         <div class="border p-3 rounded bg-white">
             <button type="button" @click="loco = !loco"
                     class="flex justify-between w-full text-left font-semibold">
-                🏛️ Localizzazione
+
+                <span>
+                    🏛️ Localizzazione
+                    @if(($activePerSection['loco'] ?? 0) > 0)
+                        <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                            {{ $activePerSection['loco'] }}
+                        </span>
+                    @endif
+                </span>
+
                 <span x-text="loco ? '▲' : '▼'"></span>
             </button>
 
@@ -126,7 +159,16 @@
         <div class="border p-3 rounded bg-white">
             <button type="button" @click="catasto = !catasto"
                     class="flex justify-between w-full text-left font-semibold">
-                🗄️ Dati Catastali
+
+                <span>
+                    🗄️ Dati Catastali
+                    @if(($activePerSection['catasto'] ?? 0) > 0)
+                        <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                            {{ $activePerSection['catasto'] }}
+                        </span>
+                    @endif
+                </span>
+
                 <span x-text="catasto ? '▲' : '▼'"></span>
             </button>
 
@@ -152,7 +194,16 @@
         <div class="border p-3 rounded bg-white">
             <button type="button" @click="protocollo = !protocollo"
                     class="flex justify-between w-full text-left font-semibold">
-                📑 Protocollo & Rilascio
+
+                <span>
+                    📑 Protocollo & Rilascio
+                    @if(($activePerSection['protocollo'] ?? 0) > 0)
+                        <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                            {{ $activePerSection['protocollo'] }}
+                        </span>
+                    @endif
+                </span>
+
                 <span x-text="protocollo ? '▲' : '▼'"></span>
             </button>
 
@@ -186,7 +237,16 @@
         <div class="border p-3 rounded bg-white">
             <button type="button" @click="pdfsec = !pdfsec"
                     class="flex justify-between w-full text-left font-semibold">
-                🔎 Ricerca nei PDF
+
+                <span>
+                    🔎 Ricerca nei PDF
+                    @if(($activePerSection['pdfsec'] ?? 0) > 0)
+                        <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                            {{ $activePerSection['pdfsec'] }}
+                        </span>
+                    @endif
+                </span>
+
                 <span x-text="pdfsec ? '▲' : '▼'"></span>
             </button>
 
@@ -213,7 +273,12 @@
     
 
     {{-- 🧹 Reset --}}
-    <a href="/dashboard" class="text-sm text-blue-700 underline mt-2 inline-block">Reset filtri</a>
+    <div class="mt-3">
+        <a href="/dashboard"
+        class="inline-block bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded shadow">
+            🔄 Reset filtri
+        </a>
+    </div>
 
     {{-- 📊 Tabella risultati --}}
     <div class="mt-6 bg-white shadow rounded p-4">
