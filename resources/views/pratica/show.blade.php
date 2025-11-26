@@ -233,42 +233,52 @@ function returnToDashboard() {
 <script>
 const zipForm = document.querySelector('form[action$="/zip"]');
 const zipBtn = document.getElementById('zipBtn');
+const zipCount = document.getElementById('zipCount');
 
 function refreshZipButton() {
-    const anyChecked = [...document.querySelectorAll('.pdf-check')]
-        .some(cb => cb.checked);
-    zipBtn.disabled = !anyChecked;
+    const checkboxes = [...document.querySelectorAll('.pdf-check')];
+    const checked = checkboxes.filter(cb => cb.checked).length;
+
+    // abilita/disabilita bottone
+    zipBtn.disabled = checked === 0;
+
+    // aggiorna contatore
+    if (zipCount) {
+        zipCount.textContent = checked;
+    }
 }
 
 // Seleziona tutti
 document.getElementById('selectAll').onclick = () => {
-    document.querySelectorAll('.pdf-check').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.pdf-check')
+        .forEach(cb => cb.checked = true);
     refreshZipButton();
 };
 
 // Deseleziona tutti
 document.getElementById('deselectAll').onclick = () => {
-    document.querySelectorAll('.pdf-check').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.pdf-check')
+        .forEach(cb => cb.checked = false);
     refreshZipButton();
 };
 
-// Aggiorna stato bottoni ad ogni checkbox
+// Aggiorna bottone ad ogni checkbox
 document.querySelectorAll('.pdf-check').forEach(cb => {
     cb.addEventListener('change', refreshZipButton);
 });
 
-// Spinner + spegnimento
+// Spinner zip (estetico)
 zipForm.addEventListener('submit', () => {
     const loader = document.getElementById('zipLoading');
     if (loader) loader.classList.remove('d-none');
 
-    // Spegni spinner dopo 4 secondi (il download parte in questo tempo)
+    // Spegnilo dopo un po', giusto per estetica UX
     setTimeout(() => {
         if (loader) loader.classList.add('d-none');
     }, 4000);
 });
 
-// Inizializza lo stato corretto
+// Inizializza
 refreshZipButton();
 </script>
 @endif
