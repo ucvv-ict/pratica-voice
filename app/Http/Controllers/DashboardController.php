@@ -147,23 +147,9 @@ class DashboardController extends Controller
             });
         }
 
-
-        /* -------------------------------------------------
-         * 📎 Conteggio PDF presenti nella cartella
-         * ------------------------------------------------- */
         $results->transform(function ($p) {
-            $folder = storage_path("app/public/PELAGO/PDF/" . $p->cartella);
-
-            if (!is_dir($folder)) {
-                $p->files_count = 0;
-                return $p;
-            }
-
-            $files = array_filter(scandir($folder), function ($f) {
-                return !in_array($f, ['.', '..']) && str_ends_with(strtolower($f), '.pdf');
-            });
-
-            $p->files_count = count($files);
+            // numero_pdf è il campo persistito nel DB
+            $p->files_count = $p->numero_pdf ?? 0;
             return $p;
         });
 

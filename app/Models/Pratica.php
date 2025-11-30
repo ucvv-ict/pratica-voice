@@ -34,6 +34,7 @@ class Pratica extends Model
         'sigla_tipo_pratica',
         'pratica_id',
         'cartella',
+        'numero_pdf',
     ];
 
     public function getRichiedentiCompletiAttribute()

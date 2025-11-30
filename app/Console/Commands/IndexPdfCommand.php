@@ -10,14 +10,30 @@ use Illuminate\Support\Facades\DB;
 class IndexPdfCommand extends Command
 {
     protected $signature = 'pdf:index';
-    protected $description = 'Indicizza tutti i PDF delle pratiche con OCR, hashing, timeout e controlli anti-blocco';
+    protected $description = 'Indicizza i PDF delle pratiche tramite hash (senza OCR) con limite e skip pratiche già indicizzate';
 
     public function handle()
     {
         $this->info("📄 Avvio indicizzazione PDF...");
 
-        $pratiche = Pratica::all();
-        $this->info("Trovate " . $pratiche->count() . " pratiche.");
+        // Limite dal .env
+        $limit = config('pratica.index_limit');
+        $this->info("🔢 Limite pratiche da indicizzare: $limit");
+
+        // Pratiche NON ancora indicizzate
+        $pratiche = Pratica::whereNotIn('id', function ($q) {
+                $q->select('pratica_id')->from('pdf_index');
+            })
+            ->orderBy('id')
+            ->take($limit)
+            ->get();
+
+        $this->info("📁 Pratiche da indicizzare: " . $pratiche->count());
+
+        if ($pratiche->count() === 0) {
+            $this->info("🎉 Tutte le pratiche sono già indicizzate!");
+            return Command::SUCCESS;
+        }
 
         $bar = $this->output->createProgressBar($pratiche->count());
         $bar->start();
@@ -26,33 +42,39 @@ class IndexPdfCommand extends Command
 
             try {
 
-                $cartellaPath = storage_path("app/public/PELAGO/PDF/" . $p->cartella);
+                $cartellaPath = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $p->cartella;
 
                 if (!File::exists($cartellaPath)) {
+                    $this->line("\n⚠️ Cartella mancante per pratica {$p->id}: {$p->cartella}");
                     $bar->advance();
                     continue;
                 }
 
                 $files = File::allFiles($cartellaPath);
 
-                foreach ($files as $file) {
+                // Solo PDF
+                $pdfFiles = array_filter($files, function ($f) {
+                    return strtolower($f->getExtension()) === 'pdf';
+                });
 
-                    $filename = $file->getFilename();
-                    $relative = $file->getRelativePathname();
-                    $fullPath = $file->getRealPath();
+                // Salva il numero di PDF
+                $p->numero_pdf = count($pdfFiles);
+                $p->save();
+
+                // Indicizzazione hash
+                foreach ($pdfFiles as $file) {
+
+                    $filename  = $file->getFilename();
+                    $relative  = $file->getRelativePathname();
+                    $fullPath  = $file->getRealPath();
 
                     $this->info("\n➡️ Pratica {$p->id} — file: $filename");
 
-                    // Skip se non PDF
-                    if (strtolower($file->getExtension()) !== 'pdf') {
-                        $this->line("   ⏭ Non è PDF, salto.");
-                        continue;
-                    }
-
-                    // HASH per saltare file già indicizzati
+                    // HASH
                     $hash = md5_file($fullPath);
                     $this->line("   🔍 Hash: $hash");
 
+                    // Esiste già?
                     $existing = DB::table('pdf_index')
                         ->where('pratica_id', $p->id)
                         ->where('file', $relative)
@@ -63,65 +85,21 @@ class IndexPdfCommand extends Command
                         continue;
                     }
 
-                    $escapedFullPath = escapeshellarg($fullPath);
-
-                    // 1️⃣ Estrazione testo normale
-                    $this->line("   📘 Estrazione testo (pdftotext)");
-                    $text = trim(shell_exec("pdftotext $escapedFullPath -"));
-
-                    // 2️⃣ Se testo vuoto → PDF immagine → OCR
-                    if (strlen($text) < 20) {
-                        $this->line("   ❗ Sembra PDF immagine → OCR");
-
-                        $tmp = storage_path("app/tmp_ocr_" . uniqid());
-                        $escapedTmp = escapeshellarg($tmp);
-
-                        $this->line("   📤 Estraggo immagine (timeout 10s)...");
-                        $output = shell_exec("timeout 10s pdftoppm -singlefile -png $escapedFullPath $escapedTmp 2>&1");
-
-                        $imgPath = $tmp . ".png";
-
-                        if (!file_exists($imgPath)) {
-                            $this->error("   ❌ Immagine non generata (errore o timeout: " . trim($output) . ")");
-                            continue;
-                        }
-
-                        // Se immagine troppo grande → skip OCR
-                        if (filesize($imgPath) > 10 * 1024 * 1024) {
-                            $this->error("   🚫 Immagine > 10MB → skip OCR");
-                            unlink($imgPath);
-                            continue;
-                        }
-
-                        // 3️⃣ OCR
-                        $this->line("   🔠 OCR con Tesseract...");
-                        $escapedImg = escapeshellarg($imgPath);
-
-                        $ocrOutput = shell_exec("tesseract $escapedImg stdout -l ita --psm 6 2>/dev/null");
-                        $text = trim($ocrOutput);
-
-                        unlink($imgPath);
-
-                        $this->line("   📄 OCR ottenuto: " . substr($text, 0, 80) . "...");
-                    } else {
-                        $this->line("   📄 Testo estratto: " . substr($text, 0, 80) . "...");
-                    }
-
-                    // 4️⃣ Salvataggio su DB
+                    // Salvare hash
                     DB::table('pdf_index')->updateOrInsert(
                         [
                             'pratica_id' => $p->id,
                             'file'       => $relative,
                         ],
                         [
-                            'content'    => $text,
                             'hash'       => $hash,
+                            'content'    => null,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]
                     );
 
-                    $this->line("   💾 Salvato nel DB.");
+                    $this->line("   💾 Hash salvato nel DB.");
                 }
 
             } catch (\Throwable $e) {
@@ -132,7 +110,7 @@ class IndexPdfCommand extends Command
         }
 
         $bar->finish();
-        $this->info("\n\n✅ Indicizzazione completata senza blocchi!");
+        $this->info("\n\n✅ Indicizzazione completata! (limite: $limit)");
 
         return Command::SUCCESS;
     }

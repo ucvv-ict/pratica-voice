@@ -39,7 +39,7 @@ class PraticaController extends Controller
             return back()->with('error', 'Impossibile creare lo ZIP.');
         }
 
-        $baseFolder = storage_path("app/public/PELAGO/PDF/" . $p->cartella);
+        $baseFolder = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $p->cartella;
         $added = 0;
 
         foreach ($selected as $filename) {
@@ -78,19 +78,16 @@ class PraticaController extends Controller
         $p = Pratica::findOrFail($id);
 
         // Percorso della cartella PDF
-        $folder = storage_path("app/public/PELAGO/PDF/" . $p->cartella);
+        $folder = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $p->cartella;
 
-        $pdfFiles = [];
-        if (File::exists($folder)) {
-            $pdfFiles = collect(File::files($folder))
-                ->filter(fn($f) => strtolower($f->getExtension()) === 'pdf')
-                ->map(fn($f) => [
-                    'name' => $f->getFilename(),
-                    'url' => asset("storage/PELAGO/PDF/{$p->cartella}/" . $f->getFilename())
-                ])
-                ->values()
-                ->toArray();
-        }
+        $pdfFiles = collect(File::files($folder))
+            ->filter(fn($f) => strtolower($f->getExtension()) === 'pdf')
+            ->map(fn($f) => [
+                'name' => $f->getFilename(),
+                'url'  => url("/pdf/{$p->cartella}/" . $f->getFilename())
+            ])
+            ->values()
+            ->toArray();
 
         return view('pratica.show', compact('p', 'pdfFiles'));
     }
