@@ -52,6 +52,12 @@ function returnToDashboard() {
 <h1 class="mb-0">Pratica {{ $p->numero_pratica }}</h1>
 <h4 class="text-muted">{{ $p->oggetto }}</h4>
 
+<div class="mb-4">
+    <a href="{{ route('accesso-atti.create', $p->id) }}" class="btn btn-warning">
+        📘 Genera fascicolo Accesso agli Atti
+    </a>
+</div>
+
 <hr>
 
 @php

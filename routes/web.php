@@ -1,8 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\File;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PraticaController;
+use App\Http\Controllers\AccessoAttiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,18 +40,77 @@ Route::get('/pratica/{id}', [PraticaController::class, 'show'])
 Route::post('/pratica/{id}/zip', [PraticaController::class, 'downloadZip'])
     ->name('pratica.zip');
 
+/*
+|--------------------------------------------------------------------------
+| Accesso agli Atti
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/pratica/{praticaId}/accesso-atti',
+    [AccessoAttiController::class, 'index']
+)->name('accesso-atti.index');
+
+Route::get('/pratica/{praticaId}/accesso-atti/create',
+    [AccessoAttiController::class, 'create']
+)->name('accesso-atti.create');
+
+Route::post('/pratica/{praticaId}/accesso-atti',
+    [AccessoAttiController::class, 'store']
+)->name('accesso-atti.store');
+
+Route::get('/accesso-atti/{id}',
+    [AccessoAttiController::class, 'show']
+)->name('accesso-atti.show');
+
+Route::get('/accesso-atti/{id}/download',
+    [AccessoAttiController::class, 'download']
+)->name('accesso-atti.download');
+
+Route::get('/accesso-atti/{id}/duplica',
+    [AccessoAttiController::class, 'duplica']
+)->name('accesso-atti.duplica');
+
+Route::get('/accesso-atti/{id}/preview/{elementoId}', 
+    [AccessoAttiController::class, 'previewElemento']
+)->name('accesso-atti.preview-elemento');
+
+Route::get('/accesso-atti/{id}/preview',
+    [AccessoAttiController::class, 'previewFascicolo']
+)->name('accesso-atti.preview');
+
+Route::get('/accesso-atti/{id}/ordinamento', 
+    [AccessoAttiController::class, 'editOrdinamento']
+)->name('accesso-atti.ordinamento');
+
+Route::post('/accesso-atti/{id}/ordinamento',
+    [AccessoAttiController::class, 'saveOrdinamento']
+)->name('accesso-atti.ordinamento.salva');
+
+Route::get('/accesso-atti/{id}/preview-inline', 
+    [AccessoAttiController::class, 'previewInline']
+)->name('accesso-atti.preview.inline');
+
+/*
+|--------------------------------------------------------------------------
+| Servizio di apertura PDF dai filesystem esterni
+|--------------------------------------------------------------------------
+*/
+
 Route::get('/pdf/{cartella}/{file}', function ($cartella, $file) {
     $base = rtrim(config('pratica.pdf_base_path'), '/');
     $path = $base . '/' . $cartella . '/' . $file;
+
+    // blocca directory traversal
+    if (str_contains($file, '..') || str_contains($cartella, '..')) {
+        abort(400);
+    }
 
     if (!File::exists($path)) {
         abort(404);
     }
 
-    // Impedisce directory traversal tipo ../../etc/
-    if (str_contains($file, '..') || str_contains($cartella, '..')) {
-        abort(400);
-    }
-
     return response()->file($path);
-})->where('file', '.*');
+})
+// accetta solo PDF
+->where('file', '[A-Za-z0-9._-]+\.pdf');
+
