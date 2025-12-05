@@ -13,6 +13,7 @@ class AccessoAtti extends Model
         'pratica_id',
         'versione',
         'descrizione',
+        'note',
         'created_by',
     ];
 

@@ -14,6 +14,13 @@
         <input type="text" name="descrizione"
                class="w-full border-gray-300 rounded-md shadow-sm mb-6">
 
+        {{-- NOTE --}}
+        <label class="block text-sm font-semibold mb-1">Note (facoltative)</label>
+        <textarea name="note"
+                rows="2"
+                class="w-full border-gray-300 rounded-md shadow-sm mb-6"
+                placeholder="Annotazioni interne, informazioni utili, ecc."></textarea>
+
         <h2 class="text-lg font-bold mb-2">Documenti della pratica</h2>
         <p class="text-gray-600 mb-4">Trascina per ordinare. Seleziona i fogli che vuoi includere.</p>
 

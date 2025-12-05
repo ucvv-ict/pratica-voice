@@ -3,26 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pratica;
+use App\Models\AccessoAtti;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 use Illuminate\Support\Facades\Log;
-
 
 class PraticaController extends Controller
 {
 
     public function downloadZip(Request $request, $id)
     {
-        $p = Pratica::findOrFail($id);
+        $pratica = Pratica::findOrFail($id);
 
         if (!$request->has('files')) {
             return back()->with('error', 'Nessun file selezionato.');
         }
 
-        // ⛔ PRIMA ERA: $request->files (sbagliato)
-        $selected = $request->input('files', []);  // <-- ARRAY di nomi file (string)
+        $selected = $request->input('files', []);  // array nomi file
 
         // 📁 Cartella tmp
         $tmpDir = storage_path("app/tmp");
@@ -30,7 +28,7 @@ class PraticaController extends Controller
             mkdir($tmpDir, 0755, true);
         }
 
-        $zipName = "pratica_{$p->id}_" . time() . ".zip";
+        $zipName = "pratica_{$pratica->id}_" . time() . ".zip";
         $zipPath = $tmpDir . "/" . $zipName;
 
         $zip = new ZipArchive;
@@ -39,7 +37,7 @@ class PraticaController extends Controller
             return back()->with('error', 'Impossibile creare lo ZIP.');
         }
 
-        $baseFolder = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $p->cartella;
+        $baseFolder = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $pratica->cartella;
         $added = 0;
 
         foreach ($selected as $filename) {
@@ -73,22 +71,35 @@ class PraticaController extends Controller
         return response()->download($zipPath)->deleteFileAfterSend(true);
     }
 
+
     public function show($id)
     {
-        $p = Pratica::findOrFail($id);
+        // 📌 Carica pratica
+        $pratica = Pratica::findOrFail($id);
 
-        // Percorso della cartella PDF
-        $folder = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $p->cartella;
+        // 📁 Percorso cartella PDF della pratica
+        $folder = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $pratica->cartella;
 
+        // 📄 Lista PDF nella cartella
         $pdfFiles = collect(File::files($folder))
             ->filter(fn($f) => strtolower($f->getExtension()) === 'pdf')
             ->map(fn($f) => [
                 'name' => $f->getFilename(),
-                'url'  => url("/pdf/{$p->cartella}/" . $f->getFilename())
+                'url'  => url("/pdf/{$pratica->cartella}/" . $f->getFilename())
             ])
             ->values()
             ->toArray();
 
-        return view('pratica.show', compact('p', 'pdfFiles'));
+        // 📚 Accessi agli Atti già creati
+        $accessi = AccessoAtti::where('pratica_id', $pratica->id)
+            ->orderBy('versione', 'desc')
+            ->get();
+
+        // 🔥 Passiamo tutto alla view
+        return view('pratica.show', [
+            'pratica'  => $pratica,
+            'pdfFiles' => $pdfFiles,
+            'accessi'  => $accessi,
+        ]);
     }
 }

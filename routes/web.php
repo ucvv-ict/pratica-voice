@@ -66,6 +66,9 @@ Route::get('/accesso-atti/{id}/download',
     [AccessoAttiController::class, 'download']
 )->name('accesso-atti.download');
 
+Route::put('/accesso-atti/{id}', [AccessoAttiController::class, 'update'])
+    ->name('accesso-atti.update');
+
 Route::get('/accesso-atti/{id}/duplica',
     [AccessoAttiController::class, 'duplica']
 )->name('accesso-atti.duplica');
@@ -89,6 +92,9 @@ Route::post('/accesso-atti/{id}/ordinamento',
 Route::get('/accesso-atti/{id}/preview-inline', 
     [AccessoAttiController::class, 'previewInline']
 )->name('accesso-atti.preview.inline');
+
+Route::delete('/accesso-atti/{id}', [AccessoAttiController::class, 'destroy'])
+    ->name('accesso-atti.destroy');
 
 /*
 |--------------------------------------------------------------------------
