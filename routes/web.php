@@ -102,20 +102,13 @@ Route::delete('/accesso-atti/{id}', [AccessoAttiController::class, 'destroy'])
 |--------------------------------------------------------------------------
 */
 
-Route::get('/pdf/{cartella}/{file}', function ($cartella, $file) {
+Route::get('/pdf-laravel/{cartella}/{file}', function ($cartella, $file) {
     // decodifica singola senza trasformare "+" in spazio
     $cartella = rawurldecode($cartella);
     $file = rawurldecode($file);
 
     $base = rtrim(config('pratica.pdf_base_path'), '/');
     $path = $base . '/' . $cartella . '/' . $file;
-
-    \Log::info('PDF route hit', [
-        'cartella' => $cartella,
-        'file' => $file,
-        'path' => $path,
-        'exists' => file_exists($path),
-    ]);
 
     // blocca directory traversal
     if (str_contains($file, '..') || str_contains($cartella, '..') || str_contains($file, '/')) {
@@ -137,4 +130,4 @@ Route::get('/pdf/{cartella}/{file}', function ($cartella, $file) {
 ->where([
     'cartella' => '[^/]+',
     'file'     => '[^/]+',
-]);
+])->name('pdf.serve');

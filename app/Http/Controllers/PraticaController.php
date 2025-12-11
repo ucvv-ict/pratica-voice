@@ -105,6 +105,9 @@ class PraticaController extends Controller
 
     private function buildPdfUrl(string $cartella, string $file): string
     {
-        return url('/pdf/' . rawurlencode($cartella) . '/' . rawurlencode($file));
+        return route('pdf.serve', [
+            'cartella' => $cartella,
+            'file'     => $file,
+        ]);
     }
 }

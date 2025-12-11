@@ -25,10 +25,10 @@ class PdfFile extends Model
 
     public function getPublicUrlAttribute(): string
     {
-        $cartella = rawurlencode($this->cartella);
-        $file = rawurlencode($this->file);
-
-        return url("/pdf/{$cartella}/{$file}");
+        return route('pdf.serve', [
+            'cartella' => $this->cartella,
+            'file'     => $this->file,
+        ]);
     }
 
     public function getPathAttribute()
