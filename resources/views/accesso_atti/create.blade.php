@@ -28,7 +28,7 @@
 
             @foreach($files as $f)
                 @php
-                    $pdfUrl = url('/pdf/' . $f->cartella . '/' . $f->file);
+                    $pdfUrl = $f->public_url;
                 @endphp
 
                 <div class="elem bg-gray-50 p-4 rounded border shadow-sm"

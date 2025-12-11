@@ -103,11 +103,20 @@ Route::delete('/accesso-atti/{id}', [AccessoAttiController::class, 'destroy'])
 */
 
 Route::get('/pdf/{cartella}/{file}', function ($cartella, $file) {
+    // decodifica segmenti per gestire spazi e caratteri speciali
+    $cartella = urldecode($cartella);
+    $file = urldecode($file);
+
     $base = rtrim(config('pratica.pdf_base_path'), '/');
     $path = $base . '/' . $cartella . '/' . $file;
 
     // blocca directory traversal
-    if (str_contains($file, '..') || str_contains($cartella, '..')) {
+    if (str_contains($file, '..') || str_contains($cartella, '..') || str_contains($file, '/')) {
+        abort(400);
+    }
+
+    // consenti solo PDF (anche con estensione maiuscola)
+    if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) !== 'pdf') {
         abort(400);
     }
 
@@ -117,6 +126,8 @@ Route::get('/pdf/{cartella}/{file}', function ($cartella, $file) {
 
     return response()->file($path);
 })
-// accetta solo PDF
-->where('file', '[A-Za-z0-9._-]+\.pdf');
-
+// accetta cartelle/file con spazi o caratteri speciali, ma senza slash
+->where([
+    'cartella' => '[^/]+',
+    'file'     => '[^/]+',
+]);

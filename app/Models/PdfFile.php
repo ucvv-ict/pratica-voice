@@ -23,6 +23,14 @@ class PdfFile extends Model
         return $this->belongsTo(\App\Models\Pratica::class);
     }
 
+    public function getPublicUrlAttribute(): string
+    {
+        $cartella = rawurlencode($this->cartella);
+        $file = rawurlencode($this->file);
+
+        return url("/pdf/{$cartella}/{$file}");
+    }
+
     public function getPathAttribute()
     {
         return storage_path("app/public/PELAGO/PDF/{$this->cartella}/{$this->file}");

@@ -85,7 +85,7 @@ class PraticaController extends Controller
             ->filter(fn($f) => strtolower($f->getExtension()) === 'pdf')
             ->map(fn($f) => [
                 'name' => $f->getFilename(),
-                'url'  => url("/pdf/{$pratica->cartella}/" . $f->getFilename())
+                'url'  => $this->buildPdfUrl($pratica->cartella, $f->getFilename())
             ])
             ->values()
             ->toArray();
@@ -101,5 +101,10 @@ class PraticaController extends Controller
             'pdfFiles' => $pdfFiles,
             'accessi'  => $accessi,
         ]);
+    }
+
+    private function buildPdfUrl(string $cartella, string $file): string
+    {
+        return url('/pdf/' . rawurlencode($cartella) . '/' . rawurlencode($file));
     }
 }
