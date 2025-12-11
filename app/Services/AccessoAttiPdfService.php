@@ -119,11 +119,18 @@ class AccessoAttiPdfService
         $pdf->AddPage('P', 'A4');
         $pdf->SetMargins(20, 20, 20);
 
+        // Logo Comune (salva il file in public/logo.png)
+        $logoPath = public_path('logo.png');
+        if (file_exists($logoPath)) {
+            // x=20, y=12, width=30mm, height auto
+            $pdf->Image($logoPath, 20, 12, 30);
+        }
+
         $pdf->SetFont('Helvetica', 'B', 16);
         $pdf->Cell(0, 10, "COMUNE DI PELAGO", 0, 1, 'C');
 
         $pdf->SetFont('Helvetica', 'B', 13);
-        $pdf->Cell(0, 8, "UFFICIO TECNICO – EDILIZIA PRIVATA", 0, 1, 'C');
+        $pdf->Cell(0, 8, "UFFICIO TECNICO - EDILIZIA PRIVATA", 0, 1, 'C');
 
         $pdf->Ln(10);
 
@@ -211,8 +218,6 @@ class AccessoAttiPdfService
 
                 $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
                 $pdf->useTemplate($tplId);
-
-                $this->watermark($pdf, "ACCESSO AGLI ATTI");
             }
         }
 

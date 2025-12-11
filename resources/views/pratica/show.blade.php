@@ -26,6 +26,12 @@
         </div>
     @endif
 
+    @if(session('swiss_link'))
+        <div class="alert alert-info mb-3">
+            📤 Link SwissTransfer: <a href="{{ session('swiss_link') }}" target="_blank" class="text-blue-700 underline">{{ session('swiss_link') }}</a>
+        </div>
+    @endif
+
     {{-- TORNA ALLA DASHBOARD --}}
     <button onclick="returnToDashboard()"
             class="mb-4 px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">
@@ -224,8 +230,18 @@
                 <div class="flex items-center gap-2">
                     <button type="submit" id="zipBtn"
                             class="px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 disabled:opacity-50"
-                            disabled>
+                            disabled
+                            name="swiss_transfer"
+                            value="0">
                         📦 Scarica ZIP selezionati (<span id="zipCount">0</span>)
+                    </button>
+
+                    <button type="submit" id="swissBtn"
+                            class="px-4 py-2 bg-indigo-600 text-white rounded shadow hover:bg-indigo-700 disabled:opacity-50"
+                            disabled
+                            name="swiss_transfer"
+                            value="1">
+                        📤 Invia via SwissTransfer
                     </button>
 
                     <span id="zipLoading"
@@ -237,7 +253,7 @@
                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 
                                     3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Preparazione ZIP...
+                        <span id="zipLoadingText">Preparazione ZIP...</span>
                     </span>
                 </div>
             </div>
@@ -283,13 +299,17 @@
         <script>
             const zipForm  = document.querySelector('form[action$="/zip"]');
             const zipBtn   = document.getElementById('zipBtn');
+            const swissBtn = document.getElementById('swissBtn');
             const zipCount = document.getElementById('zipCount');
+            const zipLoadingText = document.getElementById('zipLoadingText');
 
             function refreshZipButton() {
                 const checkboxes = [...document.querySelectorAll('.pdf-check')];
                 const checked    = checkboxes.filter(cb => cb.checked).length;
 
-                zipBtn.disabled = checked === 0;
+                const disabled = checked === 0;
+                zipBtn.disabled = disabled;
+                swissBtn.disabled = disabled;
                 zipCount.textContent = checked;
             }
 
@@ -307,7 +327,13 @@
                 cb.addEventListener('change', refreshZipButton);
             });
 
-            zipForm.addEventListener('submit', () => {
+            zipForm.addEventListener('submit', (event) => {
+                const submitter = event.submitter;
+                if (submitter && submitter.id === 'swissBtn') {
+                    zipLoadingText.textContent = 'Preparazione ZIP e upload su SwissTransfer...';
+                } else {
+                    zipLoadingText.textContent = 'Preparazione ZIP...';
+                }
                 document.getElementById('zipLoading')?.classList.remove('d-none');
             });
 

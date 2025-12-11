@@ -6,13 +6,14 @@ use App\Models\Pratica;
 use App\Models\AccessoAtti;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
-use ZipArchive;
 use Illuminate\Support\Facades\Log;
+use App\Services\SwissTransferService;
+use ZipArchive;
 
 class PraticaController extends Controller
 {
 
-    public function downloadZip(Request $request, $id)
+    public function downloadZip(Request $request, $id, SwissTransferService $swiss)
     {
         $pratica = Pratica::findOrFail($id);
 
@@ -21,6 +22,7 @@ class PraticaController extends Controller
         }
 
         $selected = $request->input('files', []);  // array nomi file
+        $useSwiss = $request->boolean('swiss_transfer');
 
         // 📁 Cartella tmp
         $tmpDir = storage_path("app/tmp");
@@ -68,6 +70,31 @@ class PraticaController extends Controller
 
         Log::info("ZIP creato: {$zipPath} (size: " . filesize($zipPath) . " bytes)");
 
+        // Upload SwissTransfer se richiesto
+        if ($useSwiss) {
+            if (!config('services.swisstransfer.enabled')) {
+                unlink($zipPath);
+                return back()->with('error', 'SwissTransfer non è configurato (abilitalo in .env).');
+            }
+
+            try {
+                $link = $swiss->upload($zipPath, $zipName);
+                unlink($zipPath);
+
+                return back()
+                    ->with('success', 'Link SwissTransfer generato.')
+                    ->with('swiss_link', $link);
+            } catch (\Throwable $e) {
+                Log::error('SwissTransfer upload fallito', [
+                    'error' => $e->getMessage(),
+                ]);
+                unlink($zipPath);
+
+                return back()->with('error', 'Errore durante l\'upload su SwissTransfer: ' . $e->getMessage());
+            }
+        }
+
+        // Download locale
         return response()->download($zipPath)->deleteFileAfterSend(true);
     }
 

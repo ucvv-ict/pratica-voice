@@ -8,6 +8,7 @@ use App\Models\PdfFile;
 use App\Services\PdfInfoService;
 use App\Services\AccessoAttiPdfService;
 use Illuminate\Http\Request;
+use App\Services\SwissTransferService;
 
 class AccessoAttiController extends Controller
 {
@@ -200,4 +201,6 @@ class AccessoAttiController extends Controller
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="accesso_atti_v'.$accesso->versione.'.pdf"');
     }
+
+
 }
