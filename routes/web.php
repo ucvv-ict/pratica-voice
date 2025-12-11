@@ -103,9 +103,9 @@ Route::delete('/accesso-atti/{id}', [AccessoAttiController::class, 'destroy'])
 */
 
 Route::get('/pdf/{cartella}/{file}', function ($cartella, $file) {
-    // decodifica segmenti per gestire spazi e caratteri speciali
-    $cartella = urldecode($cartella);
-    $file = urldecode($file);
+    // decodifica singola senza trasformare "+" in spazio
+    $cartella = rawurldecode($cartella);
+    $file = rawurldecode($file);
 
     $base = rtrim(config('pratica.pdf_base_path'), '/');
     $path = $base . '/' . $cartella . '/' . $file;
