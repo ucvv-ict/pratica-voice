@@ -110,6 +110,13 @@ Route::get('/pdf/{cartella}/{file}', function ($cartella, $file) {
     $base = rtrim(config('pratica.pdf_base_path'), '/');
     $path = $base . '/' . $cartella . '/' . $file;
 
+    \Log::info('PDF route hit', [
+        'cartella' => $cartella,
+        'file' => $file,
+        'path' => $path,
+        'exists' => file_exists($path),
+    ]);
+
     // blocca directory traversal
     if (str_contains($file, '..') || str_contains($cartella, '..') || str_contains($file, '/')) {
         abort(400);
