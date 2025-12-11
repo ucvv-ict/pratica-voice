@@ -7,13 +7,13 @@ use App\Models\AccessoAtti;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
-use App\Services\SwissTransferService;
+use App\Services\CloudflareR2Service;
 use ZipArchive;
 
 class PraticaController extends Controller
 {
 
-    public function downloadZip(Request $request, $id, SwissTransferService $swiss)
+    public function downloadZip(Request $request, $id, CloudflareR2Service $r2)
     {
         $pratica = Pratica::findOrFail($id);
 
@@ -22,7 +22,7 @@ class PraticaController extends Controller
         }
 
         $selected = $request->input('files', []);  // array nomi file
-        $useSwiss = $request->boolean('swiss_transfer');
+        $useR2 = $request->boolean('r2_upload');
 
         // 📁 Cartella tmp
         $tmpDir = storage_path("app/tmp");
@@ -70,27 +70,29 @@ class PraticaController extends Controller
 
         Log::info("ZIP creato: {$zipPath} (size: " . filesize($zipPath) . " bytes)");
 
-        // Upload SwissTransfer se richiesto
-        if ($useSwiss) {
-            if (!config('services.swisstransfer.enabled')) {
+        // Upload su Cloudflare R2 se richiesto
+        if ($useR2) {
+            if (!env('R2_BUCKET')) {
                 unlink($zipPath);
-                return back()->with('error', 'SwissTransfer non è configurato (abilitalo in .env).');
+                return back()->with('error', 'Cloudflare R2 non è configurato (manca R2_BUCKET/credenziali).');
             }
 
             try {
-                $link = $swiss->upload($zipPath, $zipName);
+                $key = 'zip_pratica/' . $pratica->id . '/pratica_' . $pratica->id . '_' . time() . '.zip';
+                $result = $r2->uploadAndLink($zipPath, $key);
                 unlink($zipPath);
 
                 return back()
-                    ->with('success', 'Link SwissTransfer generato.')
-                    ->with('swiss_link', $link);
+                    ->with('success', 'Link R2 generato.')
+                    ->with('r2_link', $result['url'])
+                    ->with('r2_expires_at', optional($result['expires_at'])->toIso8601String());
             } catch (\Throwable $e) {
-                Log::error('SwissTransfer upload fallito', [
+                Log::error('R2 upload fallito', [
                     'error' => $e->getMessage(),
                 ]);
                 unlink($zipPath);
 
-                return back()->with('error', 'Errore durante l\'upload su SwissTransfer: ' . $e->getMessage());
+                return back()->with('error', 'Errore durante l\'upload su R2: ' . $e->getMessage());
             }
         }
 

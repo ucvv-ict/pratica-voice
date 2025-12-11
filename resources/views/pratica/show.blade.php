@@ -26,9 +26,12 @@
         </div>
     @endif
 
-    @if(session('swiss_link'))
+    @if(session('r2_link'))
         <div class="alert alert-info mb-3">
-            📤 Link SwissTransfer: <a href="{{ session('swiss_link') }}" target="_blank" class="text-blue-700 underline">{{ session('swiss_link') }}</a>
+            📤 Link R2: <a href="{{ session('r2_link') }}" target="_blank" class="text-blue-700 underline">{{ session('r2_link') }}</a>
+            @if(session('r2_expires_at'))
+                <span class="text-sm text-gray-700 ml-2">(scade: {{ \Carbon\Carbon::parse(session('r2_expires_at'))->format('d/m/Y H:i') }})</span>
+            @endif
         </div>
     @endif
 
@@ -231,17 +234,17 @@
                     <button type="submit" id="zipBtn"
                             class="px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 disabled:opacity-50"
                             disabled
-                            name="swiss_transfer"
+                            name="r2_upload"
                             value="0">
                         📦 Scarica ZIP selezionati (<span id="zipCount">0</span>)
                     </button>
 
-                    <button type="submit" id="swissBtn"
+                    <button type="submit" id="r2Btn"
                             class="px-4 py-2 bg-indigo-600 text-white rounded shadow hover:bg-indigo-700 disabled:opacity-50"
                             disabled
-                            name="swiss_transfer"
+                            name="r2_upload"
                             value="1">
-                        📤 Invia via SwissTransfer
+                        📤 Invia via R2
                     </button>
 
                     <span id="zipLoading"
@@ -299,7 +302,7 @@
         <script>
             const zipForm  = document.querySelector('form[action$="/zip"]');
             const zipBtn   = document.getElementById('zipBtn');
-            const swissBtn = document.getElementById('swissBtn');
+            const sendBtn = document.getElementById('r2Btn');
             const zipCount = document.getElementById('zipCount');
             const zipLoadingText = document.getElementById('zipLoadingText');
 
@@ -309,7 +312,7 @@
 
                 const disabled = checked === 0;
                 zipBtn.disabled = disabled;
-                swissBtn.disabled = disabled;
+                sendBtn.disabled = disabled;
                 zipCount.textContent = checked;
             }
 
@@ -329,8 +332,8 @@
 
             zipForm.addEventListener('submit', (event) => {
                 const submitter = event.submitter;
-                if (submitter && submitter.id === 'swissBtn') {
-                    zipLoadingText.textContent = 'Preparazione ZIP e upload su SwissTransfer...';
+                if (submitter && submitter.id === 'r2Btn') {
+                    zipLoadingText.textContent = 'Preparazione ZIP e upload su R2...';
                 } else {
                     zipLoadingText.textContent = 'Preparazione ZIP...';
                 }

@@ -35,14 +35,4 @@ return [
         ],
     ],
 
-    'swisstransfer' => [
-        'enabled'  => env('SWISS_TRANSFER_ENABLED', false),
-        'base_url' => env('SWISS_TRANSFER_BASE', 'https://www.swisstransfer.com/api'),
-        'from'     => env('SWISS_TRANSFER_FROM', 'pratica-voice'),
-        'validity' => env('SWISS_TRANSFER_VALIDITY', 720), // ore
-        'max_views'=> env('SWISS_TRANSFER_MAX_VIEWS'),
-        'password' => env('SWISS_TRANSFER_PASSWORD'),
-        'timeout'  => env('SWISS_TRANSFER_TIMEOUT', 120),
-    ],
-
 ];

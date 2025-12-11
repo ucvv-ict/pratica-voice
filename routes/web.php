@@ -93,6 +93,10 @@ Route::get('/accesso-atti/{id}/preview-inline',
     [AccessoAttiController::class, 'previewInline']
 )->name('accesso-atti.preview.inline');
 
+Route::post('/accesso-atti/{id}/r2',
+    [AccessoAttiController::class, 'r2Upload']
+)->name('accesso-atti.r2');
+
 Route::delete('/accesso-atti/{id}', [AccessoAttiController::class, 'destroy'])
     ->name('accesso-atti.destroy');
 

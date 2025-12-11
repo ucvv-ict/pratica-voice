@@ -15,6 +15,9 @@ class AccessoAtti extends Model
         'descrizione',
         'note',
         'created_by',
+        'r2_link',
+        'r2_link_generated_at',
+        'r2_link_expires_at',
     ];
 
     public function pratica()

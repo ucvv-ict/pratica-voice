@@ -8,7 +8,8 @@ use App\Models\PdfFile;
 use App\Services\PdfInfoService;
 use App\Services\AccessoAttiPdfService;
 use Illuminate\Http\Request;
-use App\Services\SwissTransferService;
+use App\Services\CloudflareR2Service;
+use Illuminate\Support\Facades\Log;
 
 class AccessoAttiController extends Controller
 {
@@ -200,6 +201,67 @@ class AccessoAttiController extends Controller
         return response($pdf)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="accesso_atti_v'.$accesso->versione.'.pdf"');
+    }
+
+    public function r2Upload(
+        $id,
+        AccessoAttiPdfService $pdfService,
+        CloudflareR2Service $r2
+    ) {
+        $accesso = AccessoAtti::with('elementi.file', 'pratica')->findOrFail($id);
+
+        if (!env('R2_BUCKET')) {
+            return response()->json([
+                'error' => 'Cloudflare R2 non è configurato (manca R2_BUCKET/credenziali).'
+            ], 400);
+        }
+
+        $tmpPath = null;
+
+        try {
+            $pdfContent = $pdfService->genera($accesso);
+
+            $tmpDir = storage_path('app/tmp');
+            if (!is_dir($tmpDir)) {
+                mkdir($tmpDir, 0755, true);
+            }
+
+            $fileName = 'accesso_atti_v' . $accesso->versione . '.pdf';
+            $tmpPath  = $tmpDir . '/' . $fileName;
+            file_put_contents($tmpPath, $pdfContent);
+
+            $fileName = 'accesso_atti_v' . $accesso->versione . '_' . time() . '.pdf';
+            $key = 'accesso_atti/' . $accesso->pratica_id . '/' . $fileName;
+
+            $result = $r2->uploadAndLink($tmpPath, $key);
+
+            if (file_exists($tmpPath)) {
+                unlink($tmpPath);
+            }
+
+            $accesso->update([
+                'r2_link' => $result['url'],
+                'r2_link_generated_at' => now(),
+                'r2_link_expires_at' => $result['expires_at'],
+            ]);
+
+            return response()->json([
+                'link' => $result['url'],
+                'expires_at' => optional($result['expires_at'])->toIso8601String(),
+            ]);
+        } catch (\Throwable $e) {
+            if ($tmpPath && file_exists($tmpPath)) {
+                unlink($tmpPath);
+            }
+            Log::error('R2 upload accesso_atti fallito', [
+                'accesso_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Errore durante upload su R2: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 
