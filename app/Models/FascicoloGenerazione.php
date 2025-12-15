@@ -18,6 +18,13 @@ class FascicoloGenerazione extends Model
         'progress',
         'errore',
         'file_zip',
+        'files_selezionati',
+        'notificato_at',
+    ];
+
+    protected $casts = [
+        'files_selezionati' => 'array',
+        'notificato_at' => 'datetime',
     ];
 
     public function pratica()

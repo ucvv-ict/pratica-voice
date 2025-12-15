@@ -31,9 +31,10 @@ class PraticaController extends Controller
             'versione'   => $versione,
             'stato'      => 'pending',
             'progress'   => 0,
+            'files_selezionati' => $selected,
         ]);
 
-        GeneraFascicoloJob::dispatch($fascicolo->id, $selected);
+        GeneraFascicoloJob::dispatch($fascicolo->id);
 
         return back()->with('success', 'Fascicolo in coda. Aggiorna la pagina per vedere lo stato.');
     }
@@ -107,10 +108,28 @@ class PraticaController extends Controller
             abort(404);
         }
 
-        if (!file_exists($fascicolo->file_zip)) {
+        $zipPath = $fascicolo->file_zip;
+
+        if (!file_exists($zipPath)) {
             abort(404);
         }
 
-        return response()->download($fascicolo->file_zip, basename($fascicolo->file_zip));
+        $filename = basename($zipPath);
+
+        return response()->streamDownload(function () use ($zipPath, $fascicolo) {
+            $stream = fopen($zipPath, 'rb');
+            while (!feof($stream)) {
+                echo fread($stream, 1024 * 256);
+            }
+            fclose($stream);
+
+            if (file_exists($zipPath)) {
+                unlink($zipPath);
+            }
+
+            $fascicolo->update(['file_zip' => null]);
+        }, $filename, [
+            'Content-Type' => 'application/zip',
+        ]);
     }
 }

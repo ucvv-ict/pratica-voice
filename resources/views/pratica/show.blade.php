@@ -37,7 +37,14 @@
 
     @php
         $ultimaGenerazione = $fascicoli->first();
+        $fascicoloReady = $ultimaGenerazione && $ultimaGenerazione->stato === 'completed';
     @endphp
+
+    {{-- STATO CARICAMENTO DOCUMENTI --}}
+    <div id="pdfLoading"
+         class="mb-4 p-3 rounded bg-yellow-50 border border-yellow-200 text-yellow-800">
+        ⏳ Caricamento documenti della pratica…
+    </div>
 
     @if($ultimaGenerazione)
         <div class="mb-4 p-4 border border-gray-200 rounded bg-gray-50" id="fascicoloStatus"
@@ -47,6 +54,10 @@
                     <p class="font-semibold">Stato fascicolo (versione {{ $ultimaGenerazione->versione }})</p>
                     <p>Stato: <span id="fascicoloStato">{{ $ultimaGenerazione->stato }}</span></p>
                     <p>Avanzamento: <span id="fascicoloProgress">{{ $ultimaGenerazione->progress }}</span>%</p>
+                    <p id="fascicoloReady"
+                       class="text-green-700 font-semibold {{ $fascicoloReady ? '' : 'hidden' }}">
+                        ✅ Fascicolo pronto
+                    </p>
                     @if($ultimaGenerazione->errore)
                         <p class="text-red-600" id="fascicoloError">{{ $ultimaGenerazione->errore }}</p>
                     @else
@@ -54,9 +65,12 @@
                     @endif
                 </div>
                 <div class="flex items-center gap-2">
-                    <a href="{{ route('pratica.fascicolo.download', [$pratica->id, $ultimaGenerazione->id]) }}"
+                    <a href="{{ $fascicoloReady ? route('pratica.fascicolo.download', [$pratica->id, $ultimaGenerazione->id]) : '#' }}"
+                       data-download-url="{{ route('pratica.fascicolo.download', [$pratica->id, $ultimaGenerazione->id]) }}"
                        id="fascicoloDownload"
-                       class="px-3 py-1 bg-green-600 text-white rounded shadow hover:bg-green-700 {{ $ultimaGenerazione->stato === 'completed' ? '' : 'hidden' }}">
+                       aria-disabled="{{ $fascicoloReady ? 'false' : 'true' }}"
+                       @if(!$fascicoloReady) tabindex="-1" @endif
+                       class="px-3 py-1 bg-green-600 text-white rounded shadow hover:bg-green-700 {{ $fascicoloReady ? '' : 'pointer-events-none opacity-50' }}">
                         ⬇ Scarica ZIP
                     </a>
                     <button type="button"
@@ -250,6 +264,13 @@
         </p>
     @else
 
+        <div id="pdfContainer" style="max-height: 70vh; overflow-y: auto; display: none;">
+
+        <div class="w-full bg-gray-200 rounded h-3 mb-3">
+            <div id="pdfProgressBar" class="bg-blue-600 h-3 rounded" style="width: 0%;"></div>
+        </div>
+        <p class="text-sm text-gray-600 mb-3">Caricamento PDF: <span id="pdfProgressText">0%</span></p>
+
         <form method="POST" action="/pratica/{{ $pratica->id }}/zip">
             @csrf
 
@@ -323,9 +344,18 @@
 
             </ul>
         </form>
+        </div>
 
         {{-- JS ZIP + ANTEPRIMA PDF --}}
         <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                document.getElementById('pdfLoading')?.classList.add('hidden');
+                const pdfContainer = document.getElementById('pdfContainer');
+                if (pdfContainer) {
+                    pdfContainer.style.display = 'block';
+                }
+            });
+
             const zipForm  = document.querySelector('form[action$="/zip"]');
             const zipBtn   = document.getElementById('zipBtn');
             const zipCount = document.getElementById('zipCount');
@@ -367,10 +397,50 @@
                     e.preventDefault();
                     const viewer = document.getElementById('pdfViewer');
                     if (viewer) {
+                        viewer.dataset.src = this.href;
                         viewer.src = this.href;
                     }
                 });
             });
+
+            // Lazy load PDF iframe + progress
+            (function setupPdfLazyLoading() {
+                const pdfElements = [...document.querySelectorAll('[data-pdf-lazy]')];
+                if (!pdfElements.length) return;
+
+                let loaded = 0;
+                const total = pdfElements.length;
+                const progressBar = document.getElementById('pdfProgressBar');
+                const progressText = document.getElementById('pdfProgressText');
+
+                const updateProgress = () => {
+                    const pct = Math.min(100, Math.round((loaded / total) * 100));
+                    if (progressBar) progressBar.style.width = pct + '%';
+                    if (progressText) progressText.textContent = pct + '%';
+                };
+
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (!entry.isIntersecting) return;
+                        const el = entry.target;
+                        observer.unobserve(el);
+                        if (!el.getAttribute('src')) {
+                            const src = el.dataset.src || '';
+                            el.setAttribute('src', src);
+                            el.addEventListener('load', () => {
+                                loaded++;
+                                updateProgress();
+                            }, { once: true });
+                        }
+                    });
+                }, {
+                    root: document.getElementById('pdfContainer'),
+                    threshold: 0.1
+                });
+
+                pdfElements.forEach(el => observer.observe(el));
+                updateProgress();
+            })();
 
             // Polling semplice per lo stato dell'ultimo fascicolo generato
             const statusBox = document.getElementById('fascicoloStatus');
@@ -380,6 +450,22 @@
                 const progressEl = document.getElementById('fascicoloProgress');
                 const errorEl = document.getElementById('fascicoloError');
                 const downloadEl = document.getElementById('fascicoloDownload');
+                const readyEl = document.getElementById('fascicoloReady');
+
+                const toggleDownload = (isReady, url) => {
+                    if (!downloadEl) return;
+                    if (isReady && url) {
+                        downloadEl.href = url;
+                        downloadEl.classList.remove('pointer-events-none', 'opacity-50', 'hidden');
+                        downloadEl.setAttribute('aria-disabled', 'false');
+                        downloadEl.removeAttribute('tabindex');
+                    } else {
+                        downloadEl.href = '#';
+                        downloadEl.classList.add('pointer-events-none', 'opacity-50');
+                        downloadEl.setAttribute('aria-disabled', 'true');
+                        downloadEl.setAttribute('tabindex', '-1');
+                    }
+                };
 
                 const refreshStatus = async () => {
                     try {
@@ -396,8 +482,11 @@
                         }
 
                         if (data.download) {
-                            downloadEl.href = data.download;
-                            downloadEl.classList.remove('hidden');
+                            toggleDownload(true, data.download);
+                            readyEl?.classList.remove('hidden');
+                        } else {
+                            toggleDownload(false, null);
+                            readyEl?.classList.add('hidden');
                         }
 
                         if (data.stato !== 'completed' && data.stato !== 'error') {
@@ -409,6 +498,11 @@
                 };
 
                 if (statoEl && progressEl) {
+                    const initialReady = (statoEl.textContent || '').trim() === 'completed';
+                    toggleDownload(initialReady, initialReady ? downloadEl?.dataset.downloadUrl : null);
+                    if (!initialReady) {
+                        readyEl?.classList.add('hidden');
+                    }
                     refreshStatus();
                 }
             }
@@ -432,7 +526,9 @@
 
         <iframe
             id="pdfViewer"
-            src="{{ $autoPdf ?? '' }}"
+            data-src="{{ $autoPdf ?? '' }}"
+            data-pdf-lazy="1"
+            src=""
             width="100%"
             height="800"
             class="border rounded">

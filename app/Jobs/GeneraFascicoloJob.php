@@ -29,12 +29,15 @@ class GeneraFascicoloJob implements ShouldQueue
      * Conserviamo solo l'ID per non serializzare relazioni pesanti.
      */
     private int $fascicoloId;
-    private array $files;
 
-    public function __construct(int $fascicoloId, array $files)
+    /**
+     * Timeout esteso per fascicoli voluminosi (20 minuti).
+     */
+    public $timeout = 1200;
+
+    public function __construct(int $fascicoloId)
     {
         $this->fascicoloId = $fascicoloId;
-        $this->files = $files;
     }
 
     public function handle(): void
@@ -44,6 +47,8 @@ class GeneraFascicoloJob implements ShouldQueue
             return;
         }
 
+        $files = is_array($fascicolo->files_selezionati) ? $fascicolo->files_selezionati : [];
+
         $fascicolo->update([
             'stato'    => 'in_progress',
             'progress' => 0,
@@ -52,8 +57,13 @@ class GeneraFascicoloJob implements ShouldQueue
 
         $pratica = $fascicolo->pratica;
         $baseFolder = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $pratica->cartella;
+        $baseFolderReal = realpath($baseFolder);
 
-        $tmpDir = storage_path('app/tmp');
+        if (!$baseFolderReal) {
+            throw new \RuntimeException('Cartella pratica non trovata.');
+        }
+
+        $tmpDir = storage_path('app/tmp/fascicoli');
         if (!is_dir($tmpDir)) {
             mkdir($tmpDir, 0755, true);
         }
@@ -66,25 +76,33 @@ class GeneraFascicoloJob implements ShouldQueue
             throw new \RuntimeException('Impossibile creare lo ZIP.');
         }
 
-        $total = max(count($this->files), 1);
+        $total = max(count($files), 1);
         $processed = 0;
         $added = 0;
 
         try {
-            foreach ($this->files as $filename) {
+            foreach ($files as $filename) {
                 $full = $baseFolder . '/' . $filename;
+                $real = realpath($full);
 
-                if (!file_exists($full)) {
-                    Log::warning("Fascicolo zip - file non trovato: {$full}");
+                if (!$real || !str_starts_with($real, $baseFolderReal . DIRECTORY_SEPARATOR)) {
+                    Log::warning("Fascicolo zip - path non valido o fuori cartella: {$full}");
                     $processed++;
                     $this->updateProgress($fascicolo, $processed, $total);
                     continue;
                 }
 
-                if ($zip->addFile($full, $filename)) {
+                if (!file_exists($real)) {
+                    Log::warning("Fascicolo zip - file non trovato: {$real}");
+                    $processed++;
+                    $this->updateProgress($fascicolo, $processed, $total);
+                    continue;
+                }
+
+                if ($zip->addFile($real, $filename)) {
                     $added++;
                 } else {
-                    Log::error("Fascicolo zip - errore addFile per: {$full}");
+                    Log::error("Fascicolo zip - errore addFile per: {$real}");
                 }
 
                 $processed++;
