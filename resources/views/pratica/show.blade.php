@@ -35,6 +35,40 @@
         </div>
     @endif
 
+    @php
+        $ultimaGenerazione = $fascicoli->first();
+    @endphp
+
+    @if($ultimaGenerazione)
+        <div class="mb-4 p-4 border border-gray-200 rounded bg-gray-50" id="fascicoloStatus"
+             data-status-url="{{ route('pratica.fascicolo.status', [$pratica->id, $ultimaGenerazione->id]) }}">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                    <p class="font-semibold">Stato fascicolo (versione {{ $ultimaGenerazione->versione }})</p>
+                    <p>Stato: <span id="fascicoloStato">{{ $ultimaGenerazione->stato }}</span></p>
+                    <p>Avanzamento: <span id="fascicoloProgress">{{ $ultimaGenerazione->progress }}</span>%</p>
+                    @if($ultimaGenerazione->errore)
+                        <p class="text-red-600" id="fascicoloError">{{ $ultimaGenerazione->errore }}</p>
+                    @else
+                        <p class="text-red-600 hidden" id="fascicoloError"></p>
+                    @endif
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="{{ route('pratica.fascicolo.download', [$pratica->id, $ultimaGenerazione->id]) }}"
+                       id="fascicoloDownload"
+                       class="px-3 py-1 bg-green-600 text-white rounded shadow hover:bg-green-700 {{ $ultimaGenerazione->stato === 'completed' ? '' : 'hidden' }}">
+                        ⬇ Scarica ZIP
+                    </a>
+                    <button type="button"
+                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                            onclick="window.location.reload()">
+                        Aggiorna
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- TORNA ALLA DASHBOARD --}}
     <button onclick="returnToDashboard()"
             class="mb-4 px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">
@@ -236,15 +270,7 @@
                             disabled
                             name="r2_upload"
                             value="0">
-                        📦 Scarica ZIP selezionati (<span id="zipCount">0</span>)
-                    </button>
-
-                    <button type="submit" id="r2Btn"
-                            class="px-4 py-2 bg-indigo-600 text-white rounded shadow hover:bg-indigo-700 disabled:opacity-50"
-                            disabled
-                            name="r2_upload"
-                            value="1">
-                        📤 Invia via R2
+                        📦 Avvia generazione (queue) (<span id="zipCount">0</span>)
                     </button>
 
                     <span id="zipLoading"
@@ -302,7 +328,6 @@
         <script>
             const zipForm  = document.querySelector('form[action$="/zip"]');
             const zipBtn   = document.getElementById('zipBtn');
-            const sendBtn = document.getElementById('r2Btn');
             const zipCount = document.getElementById('zipCount');
             const zipLoadingText = document.getElementById('zipLoadingText');
 
@@ -312,7 +337,6 @@
 
                 const disabled = checked === 0;
                 zipBtn.disabled = disabled;
-                sendBtn.disabled = disabled;
                 zipCount.textContent = checked;
             }
 
@@ -331,13 +355,8 @@
             });
 
             zipForm.addEventListener('submit', (event) => {
-                const submitter = event.submitter;
-                if (submitter && submitter.id === 'r2Btn') {
-                    zipLoadingText.textContent = 'Preparazione ZIP e upload su R2...';
-                } else {
-                    zipLoadingText.textContent = 'Preparazione ZIP...';
-                }
-                document.getElementById('zipLoading')?.classList.remove('d-none');
+                zipLoadingText.textContent = 'Fascicolo messo in coda...';
+                document.getElementById('zipLoading')?.classList.remove('hidden');
             });
 
             refreshZipButton();
@@ -352,6 +371,47 @@
                     }
                 });
             });
+
+            // Polling semplice per lo stato dell'ultimo fascicolo generato
+            const statusBox = document.getElementById('fascicoloStatus');
+            if (statusBox) {
+                const statusUrl = statusBox.dataset.statusUrl;
+                const statoEl = document.getElementById('fascicoloStato');
+                const progressEl = document.getElementById('fascicoloProgress');
+                const errorEl = document.getElementById('fascicoloError');
+                const downloadEl = document.getElementById('fascicoloDownload');
+
+                const refreshStatus = async () => {
+                    try {
+                        const resp = await fetch(statusUrl);
+                        const data = await resp.json();
+                        statoEl.textContent = data.stato;
+                        progressEl.textContent = data.progress ?? 0;
+                        if (data.errore) {
+                            errorEl.textContent = data.errore;
+                            errorEl.classList.remove('hidden');
+                        } else {
+                            errorEl.classList.add('hidden');
+                            errorEl.textContent = '';
+                        }
+
+                        if (data.download) {
+                            downloadEl.href = data.download;
+                            downloadEl.classList.remove('hidden');
+                        }
+
+                        if (data.stato !== 'completed' && data.stato !== 'error') {
+                            setTimeout(refreshStatus, 5000);
+                        }
+                    } catch (err) {
+                        console.error('Impossibile aggiornare lo stato del fascicolo', err);
+                    }
+                };
+
+                if (statoEl && progressEl) {
+                    refreshStatus();
+                }
+            }
         </script>
 
         {{-- BLOCCO ANTEPRIMA --}}
