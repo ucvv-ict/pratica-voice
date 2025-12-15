@@ -177,6 +177,9 @@ class AccessoAttiPdfService
 
     public function genera(AccessoAtti $accesso): string
     {
+        // Estende il tempo massimo per la generazione di fascicoli molto grandi
+        set_time_limit(300);
+
         $pdf = new \App\Services\FpdiExtended();
         $this->copertina($pdf, $accesso);
 

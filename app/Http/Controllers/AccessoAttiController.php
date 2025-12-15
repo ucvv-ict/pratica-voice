@@ -9,6 +9,7 @@ use App\Services\PdfInfoService;
 use App\Services\AccessoAttiPdfService;
 use Illuminate\Http\Request;
 use App\Services\CloudflareR2Service;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class AccessoAttiController extends Controller
@@ -214,6 +215,18 @@ class AccessoAttiController extends Controller
             return response()->json([
                 'error' => 'Cloudflare R2 non è configurato (manca R2_BUCKET/credenziali).'
             ], 400);
+        }
+
+        // Evita di rigenerare se esiste un link ancora valido
+        if ($accesso->r2_link && $accesso->r2_link_expires_at) {
+            $expires = Carbon::parse($accesso->r2_link_expires_at);
+            if ($expires->isFuture()) {
+                return response()->json([
+                    'link' => $accesso->r2_link,
+                    'expires_at' => $expires->toIso8601String(),
+                    'cached' => true,
+                ]);
+            }
         }
 
         $tmpPath = null;

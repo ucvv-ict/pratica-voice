@@ -8,7 +8,10 @@
 </a>
 
 <div class="bg-white shadow p-6 rounded-lg">
-    @php $r2Enabled = env('R2_BUCKET'); @endphp
+    @php
+        $r2Enabled = env('R2_BUCKET');
+        $r2Active = $accesso->r2_link && $accesso->r2_link_expires_at && \Carbon\Carbon::parse($accesso->r2_link_expires_at)->isFuture();
+    @endphp
 
     {{-- TITOLO --}}
     <h1 class="text-2xl font-bold mb-2 flex items-center gap-2">
@@ -79,10 +82,10 @@
         </button>
 
         <button id="r2Btn"
-                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded shadow {{ $r2Enabled ? '' : 'opacity-50 cursor-not-allowed' }}"
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded shadow {{ $r2Enabled && !$r2Active ? '' : 'opacity-50 cursor-not-allowed' }}"
                 onclick="openR2Modal()"
-                {{ $r2Enabled ? '' : 'disabled' }}>
-            📤 Invia link R2
+                {{ $r2Enabled && !$r2Active ? '' : 'disabled' }}>
+            📤 {{ $r2Active ? 'Link R2 già generato' : 'Invia link R2' }}
         </button>
 
         <a href="{{ route('accesso-atti.ordinamento', $accesso->id) }}"
