@@ -84,16 +84,25 @@
     @endif
 
     {{-- TORNA ALLA DASHBOARD --}}
-    <button onclick="returnToDashboard()"
-            class="mb-4 px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">
-        ⬅ Torna alla dashboard
-    </button>
+    <div id="dashboardBackWrapper" class="mb-4">
+        <x-back-button href="{{ url('/dashboard') }}">
+            Torna alla dashboard
+        </x-back-button>
+    </div>
 
     <script>
-        function returnToDashboard() {
-            const qs = localStorage.getItem('dashboardReturn') || '';
-            window.location = '/dashboard' + qs;
-        }
+        (function () {
+            const wrapper = document.getElementById('dashboardBackWrapper');
+            if (!wrapper) return;
+            const link = wrapper.querySelector('a');
+            if (!link) return;
+
+            link.addEventListener('click', function (event) {
+                event.preventDefault();
+                const qs = localStorage.getItem('dashboardReturn') || '';
+                window.location = '/dashboard' + qs;
+            });
+        })();
     </script>
 
     {{-- ACCESSI AGLI ATTI ESISTENTI --}}
@@ -147,11 +156,31 @@
 
     {{-- PULSANTE NUOVO FASCICOLO --}}
     <div class="mb-6">
-        <a href="{{ route('accesso-atti.create', $pratica->id) }}"
+        <a id="newAccessoBtn"
+           href="{{ route('accesso-atti.create', $pratica->id) }}"
            class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded shadow">
             📘 Nuovo fascicolo Accesso agli Atti
         </a>
     </div>
+    <script>
+        // Disabilita click multipli sul pulsante di apertura nuovo fascicolo
+        (function () {
+            const btn = document.getElementById('newAccessoBtn');
+            if (!btn) return;
+
+            btn.addEventListener('click', (event) => {
+                if (btn.dataset.clicked === 'true') {
+                    event.preventDefault();
+                    return;
+                }
+
+                btn.dataset.clicked = 'true';
+                btn.textContent = '⏳ Apertura…';
+                btn.classList.add('opacity-60', 'pointer-events-none', 'cursor-not-allowed');
+                if ('disabled' in btn) btn.disabled = true; // copre eventuale <button> nel futuro
+            });
+        })();
+    </script>
 
     @php
         // stessi calcoli che avevi prima
