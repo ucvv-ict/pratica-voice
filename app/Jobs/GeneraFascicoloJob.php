@@ -16,11 +16,6 @@ class GeneraFascicoloJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
-     * Usa coda database come richiesto.
-     */
-    public $connection = 'database';
-
-    /**
      * Tenta per 1 volta; la generazione può essere lunga ma non vogliamo retry doppi.
      */
     public $tries = 1;
@@ -37,6 +32,7 @@ class GeneraFascicoloJob implements ShouldQueue
 
     public function __construct(int $fascicoloId)
     {
+        $this->onConnection('database');
         $this->fascicoloId = $fascicoloId;
     }
 

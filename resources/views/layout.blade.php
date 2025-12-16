@@ -72,14 +72,221 @@
     .back-button:hover {
         background-color: #e5e7eb;
     }
-    .theme-dark .back-button {
+    .theme-dark .back-button,
+    .dark .back-button {
         background-color: #1f2937;
         color: #f9fafb;
         border: 1px solid #4b5563;
     }
-    .theme-dark .back-button:hover {
+    .theme-dark .back-button:hover,
+    .dark .back-button:hover {
         background-color: #374151;
         color: #f9fafb;
+    }
+    /* Header coerente col logo in dark */
+    .theme-dark .nav-bar,
+    .dark .nav-bar {
+        background-color: #020617 !important;
+        color: #e5e7eb !important;
+    }
+    .theme-dark header,
+    .dark header {
+        background-color: #020617;
+        color: #e5e7eb;
+    }
+
+    /* Stacco visivo header / body in dark mode */
+    .theme-dark body,
+    .dark body {
+        background-color: #0f172a;
+    }
+    .theme-dark .page,
+    .theme-dark .main-content,
+    .dark .page,
+    .dark .main-content {
+        background-color: #0f172a;
+    }
+
+    /* Select in dark mode più leggibile */
+    .theme-dark select,
+    .dark select {
+        background-color: #1e293b;
+        color: #ffffff;
+        border: 1px solid #475569;
+    }
+
+    /* Box e testi documenti in dark */
+    .theme-dark .elem,
+    .theme-dark .document-box,
+    .dark .elem,
+    .dark .document-box {
+        background-color: #020617 !important;
+        border: 1px solid #334155 !important;
+        color: #e5e7eb !important;
+    }
+    .theme-dark .elem h3,
+    .theme-dark .document-box h3,
+    .dark .elem h3,
+    .dark .document-box h3 {
+        color: #e5e7eb !important;
+    }
+    .theme-dark .elem p,
+    .theme-dark .document-box p,
+    .dark .elem p,
+    .dark .document-box p {
+        color: #cbd5e5 !important;
+    }
+    .theme-dark .card,
+    .theme-dark .panel,
+    .theme-dark .box,
+    .dark .card,
+    .dark .panel,
+    .dark .box {
+        background-color: #1e293b !important;
+        border: 1px solid #334155 !important;
+        color: #e5e7eb !important;
+    }
+
+    /* Form: input, select, textarea in dark mode */
+    .theme-dark input,
+    .theme-dark textarea,
+    .theme-dark select,
+    .dark input,
+    .dark textarea,
+    .dark select {
+        background-color: #020617;
+        color: #f8fafc;
+        border: 1px solid #334155;
+    }
+    .theme-dark input::placeholder,
+    .theme-dark textarea::placeholder,
+    .dark input::placeholder,
+    .dark textarea::placeholder {
+        color: #94a3b8;
+    }
+    .theme-dark input:focus,
+    .theme-dark textarea:focus,
+    .theme-dark select:focus,
+    .dark input:focus,
+    .dark textarea:focus,
+    .dark select:focus {
+        outline: none;
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 1px #60a5fa;
+    }
+    .theme-dark label,
+    .theme-dark .form-label,
+    .dark label,
+    .dark .form-label {
+        color: #e5e7eb;
+    }
+    .theme-dark .text-muted,
+    .dark .text-muted {
+        color: #94a3b8;
+    }
+
+    /* Tabelle in dark mode */
+    .theme-dark table,
+    .dark table {
+        background-color: #020617;
+        color: #e5e7eb;
+    }
+    .theme-dark table thead,
+    .dark table thead {
+        background-color: #0f172a;
+        color: #f8fafc;
+    }
+    .theme-dark table tbody tr,
+    .dark table tbody tr {
+        background-color: #020617;
+    }
+    .theme-dark table tbody tr:nth-child(even),
+    .theme-dark table tbody tr:nth-child(odd),
+    .dark table tbody tr:nth-child(even),
+    .dark table tbody tr:nth-child(odd) {
+        background-color: #020617;
+    }
+    .theme-dark table tbody tr:hover,
+    .dark table tbody tr:hover {
+        background-color: #1e293b;
+    }
+    .theme-dark table a,
+    .dark table a {
+        color: #93c5fd;
+    }
+    .theme-dark table a:hover,
+    .dark table a:hover {
+        color: #bfdbfe;
+        text-decoration: underline;
+    }
+
+    /* Bottoni generici in dark mode */
+    .theme-dark .btn,
+    .dark .btn {
+        color: #f8fafc;
+    }
+
+    /* Paginazione in dark mode */
+    /* Paginazione dark: wrapper e controlli compatti */
+    .theme-dark .pagination-wrapper,
+    .dark .pagination-wrapper {
+        background-color: #020617;
+        border-top: 1px solid #334155;
+        padding: 0.75rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .theme-dark .pagination-info,
+    .theme-dark .text-pagination,
+    .dark .pagination-info,
+    .dark .text-pagination {
+        color: #94a3b8;
+        font-size: 0.875rem;
+    }
+    .theme-dark .pagination,
+    .dark .pagination {
+        display: inline-flex;
+        gap: 0;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        border: 1px solid #334155;
+        background-color: #020617;
+    }
+    .theme-dark .pagination a,
+    .theme-dark .pagination span,
+    .dark .pagination a,
+    .dark .pagination span {
+        background-color: #020617;
+        color: #e5e7eb;
+        padding: 0.4rem 0.75rem;
+        border-right: 1px solid #334155;
+        font-size: 0.875rem;
+    }
+    .theme-dark .pagination a:last-child,
+    .theme-dark .pagination span:last-child,
+    .dark .pagination a:last-child,
+    .dark .pagination span:last-child {
+        border-right: none;
+    }
+    .theme-dark .pagination a:hover,
+    .dark .pagination a:hover {
+        background-color: #1e293b;
+        color: #ffffff;
+    }
+    .theme-dark .pagination .active span,
+    .dark .pagination .active span {
+        background-color: #2563eb;
+        color: #ffffff;
+        font-weight: 600;
+        border-color: #2563eb;
+    }
+    .theme-dark .pagination .disabled span,
+    .dark .pagination .disabled span {
+        background-color: #020617;
+        color: #475569;
+        border-color: #334155;
+        cursor: not-allowed;
     }
 
     /* Stato caricamento PDF */
@@ -96,8 +303,8 @@
     .pdf-loaded .file-spinner { display: none !important; }
 
     /* Link leggibili in dark mode */
-    .theme-dark a { color: #93c5fd; }
-    .theme-dark a:hover { color: #bfdbfe; text-decoration: underline; }
+    .theme-dark a, .dark a { color: #93c5fd; }
+    .theme-dark a:hover, .dark a:hover { color: #bfdbfe; text-decoration: underline; }
     .logo-light { display: block; }
     .logo-dark { display: none; }
     .theme-dark .logo-light { display: none; }
@@ -142,7 +349,7 @@
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto">
+    <div class="max-w-7xl mx-auto main-content">
         @yield('content')
     </div>
 
