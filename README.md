@@ -43,3 +43,59 @@ Unione di Comuni Valdarno e Valdisieve
 Sede legale: Via XXV Aprile, 10 - 50068 Rufina (FI)
 Sito web: https://www.uc-valdarnoevaldisieve.fi.it/
 Email istituzionale:  segreteria@ucvv.it
+
+# ⚙️ Installazione e note tecniche importanti
+
+## 📁 Directory PDF esterne (OBBLIGATORIO)
+- I PDF **non** sono salvati nello storage Laravel: sono conservati in una directory esterna (NAS / disco / share).
+- La directory deve essere montata a livello di sistema (es. `/etc/fstab`):
+  - `//NAS/PDF /mnt/praticavoice-pdf cifs username=XXX,password=YYY,iocharset=utf8,uid=www-data,gid=www-data 0 0`
+  - `UUID=xxxx-xxxx /mnt/praticavoice-pdf ext4 defaults 0 2`
+- Variabile `.env` obbligatoria:
+  - `PRATICA_PDF_BASE_PATH=/mnt/praticavoice-pdf`
+
+## 🧵 Queue worker (OBBLIGATORIO)
+- La generazione dei fascicoli PDF avviene tramite Job in background: **senza worker attivo il fascicolo non viene generato**.
+- Comando worker:
+  - `php artisan queue:work`
+- Variabile `.env`:
+  - `QUEUE_CONNECTION=database`
+- Migrazioni necessarie:
+  - `php artisan queue:table`
+  - `php artisan migrate`
+- In produzione serve un worker persistente (es. `systemd` o `supervisor`).
+
+## 🗂️ Directory temporanea ZIP
+- I fascicoli ZIP vengono generati in `storage/app/tmp`: la directory deve esistere ed essere scrivibile.
+- Comandi utili:
+  - `mkdir -p storage/app/tmp`
+  - `chown -R www-data:www-data storage bootstrap/cache`
+  - `chmod -R 775 storage bootstrap/cache`
+
+## 🔐 Permessi filesystem
+- Laravel deve poter scrivere in:
+  - `storage/`
+  - `bootstrap/cache/`
+  - directory PDF esterna (almeno in lettura).
+
+## 🌐 Variabile APP_URL
+- Un valore errato di `APP_URL` può causare errori 419 Page Expired, problemi CSRF e preview PDF non funzionanti.
+- Esempio:
+  - `APP_URL=https://praticavoice.dominio.it`
+
+## 🧠 Note su prestazioni e UI
+- Le anteprime PDF sono generate lato client con PDF.js; su pratiche grandi il caricamento può essere lento.
+- Il comportamento è mitigato da:
+  - progress bar
+  - caricamento progressivo
+  - limiti di concorrenza
+- Il pulsante di salvataggio è disabilitato finché il caricamento non è completo.
+
+## 🌗 Tema chiaro / scuro
+- Tema gestito lato frontend; preferenza salvata nel `localStorage`.
+- Nessuna configurazione backend necessaria.
+
+## 🧩 Componenti Blade personalizzati
+- Il progetto utilizza componenti Blade custom, tra cui:
+  - `<x-back-button>`
+- Assicurarsi che la directory `resources/views/components` sia presente in ogni installazione.
