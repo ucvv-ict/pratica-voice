@@ -38,17 +38,22 @@
     @php
         $ultimaGenerazione = $fascicoli->first();
         $fascicoloReady = $ultimaGenerazione && $ultimaGenerazione->stato === 'completed';
-    @endphp
+@endphp
 
-    {{-- STATO CARICAMENTO DOCUMENTI --}}
-    <div id="pdfLoading"
-         class="mb-4 p-3 rounded bg-yellow-50 border border-yellow-200 text-yellow-800">
+{{-- STATO CARICAMENTO DOCUMENTI --}}
+<div id="pdfLoading"
+     class="mb-4 p-3 rounded bg-yellow-50 border border-yellow-200 text-yellow-800">
         ⏳ Caricamento documenti della pratica…
     </div>
 
     @if($ultimaGenerazione)
+        @php
+            $statusUrl = \Illuminate\Support\Facades\Route::has('pratica.fascicolo.status')
+                ? route('pratica.fascicolo.status', [$pratica->id, $ultimaGenerazione->id])
+                : null;
+        @endphp
         <div class="mb-4 p-4 border border-gray-200 rounded bg-gray-50" id="fascicoloStatus"
-             data-status-url="{{ route('pratica.fascicolo.status', [$pratica->id, $ultimaGenerazione->id]) }}">
+             @if($statusUrl) data-status-url="{{ $statusUrl }}" @endif>
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                     <p class="font-semibold">Stato fascicolo (versione {{ $ultimaGenerazione->versione }})</p>
