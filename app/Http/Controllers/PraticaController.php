@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pratica;
 use App\Models\AccessoAtti;
 use App\Models\FascicoloGenerazione;
+use App\Models\FascicoloGenerazione as FascicoloZip;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use App\Jobs\GeneraFascicoloJob;
@@ -67,12 +68,25 @@ class PraticaController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $fascicoloInCorso = FascicoloZip::where('pratica_id', $pratica->id)
+            ->whereIn('stato', ['pending', 'running'])
+            ->orderByDesc('versione')
+            ->first();
+
+        $fascicoloCompletato = FascicoloZip::where('pratica_id', $pratica->id)
+            ->where('stato', 'completed')
+            ->orderByDesc('versione')
+            ->first();
+
+        $fascicoloZip = $fascicoloInCorso ?? $fascicoloCompletato;
+
         // 🔥 Passiamo tutto alla view
         return view('pratica.show', [
             'pratica'  => $pratica,
             'pdfFiles' => $pdfFiles,
             'accessi'  => $accessi,
             'fascicoli' => $fascicoli,
+            'fascicoloZip' => $fascicoloZip,
         ]);
     }
 

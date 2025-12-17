@@ -36,48 +36,46 @@
     @endif
 
     @php
-        $ultimaGenerazione = $fascicoli->first();
-        $fascicoloReady = $ultimaGenerazione && $ultimaGenerazione->stato === 'completed';
-@endphp
+        $fascicoloReady = $fascicoloZip && $fascicoloZip->stato === 'completed';
+        $zipReady = $fascicoloReady && $fascicoloZip->file_zip;
+    @endphp
 
-{{-- STATO CARICAMENTO DOCUMENTI --}}
-<div id="pdfLoading"
-     class="mb-4 p-3 rounded bg-yellow-50 border border-yellow-200 text-yellow-800">
+    {{-- STATO CARICAMENTO DOCUMENTI --}}
+    <div id="pdfLoading"
+         class="mb-4 p-3 rounded bg-yellow-50 border border-yellow-200 text-yellow-800">
         ⏳ Caricamento documenti della pratica…
     </div>
 
-    @if($ultimaGenerazione)
+    @if($fascicoloZip)
         @php
             $statusUrl = \Illuminate\Support\Facades\Route::has('pratica.fascicolo.status')
-                ? route('pratica.fascicolo.status', [$pratica->id, $ultimaGenerazione->id])
+                ? route('pratica.fascicolo.status', [$pratica->id, $fascicoloZip->id])
                 : null;
         @endphp
         <div class="mb-4 p-4 border border-gray-200 rounded bg-gray-50" id="fascicoloStatus"
              @if($statusUrl) data-status-url="{{ $statusUrl }}" @endif>
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
-                    <p class="font-semibold">Stato fascicolo (versione {{ $ultimaGenerazione->versione }})</p>
-                    <p>Stato: <span id="fascicoloStato">{{ $ultimaGenerazione->stato }}</span></p>
-                    <p>Avanzamento: <span id="fascicoloProgress">{{ $ultimaGenerazione->progress }}</span>%</p>
+                    <p class="font-semibold">Stato fascicolo (versione {{ $fascicoloZip->versione }})</p>
+                    <p>Stato: <span id="fascicoloStato">{{ $fascicoloZip->stato }}</span></p>
+                    <p>Avanzamento: <span id="fascicoloProgress">{{ $fascicoloZip->progress }}</span>%</p>
                     <p id="fascicoloReady"
                        class="text-green-700 font-semibold {{ $fascicoloReady ? '' : 'hidden' }}">
                         ✅ Fascicolo pronto
                     </p>
-                    @if($ultimaGenerazione->errore)
-                        <p class="text-red-600" id="fascicoloError">{{ $ultimaGenerazione->errore }}</p>
+                    @if($fascicoloZip->errore)
+                        <p class="text-red-600" id="fascicoloError">{{ $fascicoloZip->errore }}</p>
                     @else
                         <p class="text-red-600 hidden" id="fascicoloError"></p>
                     @endif
                 </div>
                 <div class="flex items-center gap-2">
-                    <a href="{{ $fascicoloReady ? route('pratica.fascicolo.download', [$pratica->id, $ultimaGenerazione->id]) : '#' }}"
-                       data-download-url="{{ route('pratica.fascicolo.download', [$pratica->id, $ultimaGenerazione->id]) }}"
-                       id="fascicoloDownload"
-                       aria-disabled="{{ $fascicoloReady ? 'false' : 'true' }}"
-                       @if(!$fascicoloReady) tabindex="-1" @endif
-                       class="px-3 py-1 bg-green-600 text-white rounded shadow hover:bg-green-700 {{ $fascicoloReady ? '' : 'pointer-events-none opacity-50' }}">
-                        ⬇ Scarica ZIP
-                    </a>
+                    @if($fascicoloZip && $fascicoloZip->stato === 'completed')
+                        <a href="{{ route('fascicoli.download', $fascicoloZip->id) }}"
+                           class="px-3 py-1 bg-green-600 text-white rounded shadow hover:bg-green-700">
+                            ⬇ Scarica ZIP
+                        </a>
+                    @endif
                     <button type="button"
                             class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
                             onclick="window.location.reload()">
@@ -85,6 +83,19 @@
                     </button>
                 </div>
             </div>
+        </div>
+
+        <div id="zip-status" class="mt-4" data-fascicolo-id="{{ $fascicoloZip->id }}">
+            <div id="zip-progress" class="text-sm text-gray-600">
+                {{ $fascicoloZip->progress ?? 0 }}%
+            </div>
+
+            <a id="zip-download"
+               href="{{ $zipReady ? route('fascicoli.download', $fascicoloZip->id) : '#' }}"
+               class="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded {{ $zipReady ? '' : 'hidden' }}"
+               target="_blank">
+                Scarica fascicolo ZIP
+            </a>
         </div>
     @endif
 
@@ -483,23 +494,7 @@
                 const statoEl = document.getElementById('fascicoloStato');
                 const progressEl = document.getElementById('fascicoloProgress');
                 const errorEl = document.getElementById('fascicoloError');
-                const downloadEl = document.getElementById('fascicoloDownload');
                 const readyEl = document.getElementById('fascicoloReady');
-
-                const toggleDownload = (isReady, url) => {
-                    if (!downloadEl) return;
-                    if (isReady && url) {
-                        downloadEl.href = url;
-                        downloadEl.classList.remove('pointer-events-none', 'opacity-50', 'hidden');
-                        downloadEl.setAttribute('aria-disabled', 'false');
-                        downloadEl.removeAttribute('tabindex');
-                    } else {
-                        downloadEl.href = '#';
-                        downloadEl.classList.add('pointer-events-none', 'opacity-50');
-                        downloadEl.setAttribute('aria-disabled', 'true');
-                        downloadEl.setAttribute('tabindex', '-1');
-                    }
-                };
 
                 const refreshStatus = async () => {
                     try {
@@ -515,11 +510,9 @@
                             errorEl.textContent = '';
                         }
 
-                        if (data.download) {
-                            toggleDownload(true, data.download);
+                        if (data.stato === 'completed') {
                             readyEl?.classList.remove('hidden');
                         } else {
-                            toggleDownload(false, null);
                             readyEl?.classList.add('hidden');
                         }
 
@@ -533,13 +526,43 @@
 
                 if (statoEl && progressEl) {
                     const initialReady = (statoEl.textContent || '').trim() === 'completed';
-                    toggleDownload(initialReady, initialReady ? downloadEl?.dataset.downloadUrl : null);
                     if (!initialReady) {
                         readyEl?.classList.add('hidden');
                     }
                     refreshStatus();
                 }
             }
+
+            // Polling ZIP dedicato
+            (function setupZipPolling() {
+                const zipStatus = document.getElementById('zip-status');
+                if (!zipStatus) return;
+
+                const fascicoloId = zipStatus.dataset.fascicoloId;
+                const progressEl = document.getElementById('zip-progress');
+                const downloadEl = document.getElementById('zip-download');
+
+                const timer = setInterval(async () => {
+                    try {
+                        const res = await fetch(`/fascicoli/${fascicoloId}/status`);
+                        const data = await res.json();
+
+                        if (progressEl) {
+                            progressEl.innerText = (data.progress ?? 0) + '%';
+                        }
+
+                        if (data.stato === 'completed' && data.file_zip) {
+                            clearInterval(timer);
+                            if (downloadEl) {
+                                downloadEl.href = `/fascicoli/${fascicoloId}/download`;
+                                downloadEl.classList.remove('hidden');
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Errore polling ZIP', e);
+                    }
+                }, 2000);
+            })();
         </script>
 
         {{-- BLOCCO ANTEPRIMA --}}

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\File;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PraticaController;
 use App\Http\Controllers\AccessoAttiController;
+use App\Http\Controllers\FascicoloZipController;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,6 +48,11 @@ Route::get('/pratica/{praticaId}/fascicoli/{fascicoloId}/status',
 Route::get('/pratica/{praticaId}/fascicoli/{fascicoloId}/download',
     [PraticaController::class, 'downloadFascicolo']
 )->name('pratica.fascicolo.download');
+
+Route::get('/fascicoli/{id}/status', [FascicoloZipController::class, 'status'])
+    ->name('fascicoli.status');
+Route::get('/fascicoli/{id}/download', [FascicoloZipController::class, 'download'])
+    ->name('fascicoli.download');
 
 /*
 |--------------------------------------------------------------------------
