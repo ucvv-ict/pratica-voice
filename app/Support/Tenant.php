@@ -26,10 +26,20 @@ class Tenant
 
     public static function praticaPdfFolder(string $cartella): string
     {
-        $base = rtrim(config('pratica.pdf_base_path'), '/');
-        $folder = trim($cartella, '/');
+        // Caso on-prem: PDF su filesystem esterno (NAS / mount)
+        if (config('praticavoice.mode') === 'on_prem') {
+            return rtrim(config('pratica.pdf_base_path'), '/') . '/' . $cartella;
+        }
 
-        return "{$base}/{$folder}";
+        // Caso cloud: PDF in storage Laravel
+        return storage_path(
+            'app/public/' .
+            self::slug() .
+            '/' .
+            config('praticavoice.tenant.pdf_dir') .
+            '/' .
+            $cartella
+        );
     }
 
     public static function praticaPdfAssetBase(string $cartella): string
