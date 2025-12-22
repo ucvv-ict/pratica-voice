@@ -83,6 +83,23 @@ Email istituzionale:  segreteria@ucvv.it
 - Esempio:
   - `APP_URL=https://praticavoice.dominio.it`
 
+## 🚀 Deploy on-prem per nuovo Comune (multi-tenant)
+- Copia codice e dipendenze: `composer install --no-dev --optimize-autoloader`.
+- Imposta il `.env`:
+  - `PRATICAVOICE_MODE=onprem`
+  - `TENANT_SLUG=<slug-comune>` (es. `pelago`)
+  - `TENANT_NAME="<Nome Comune>"`
+  - `TENANT_PDF_DIR=PDF` (o il nome reale della cartella PDF)
+  - `PRACTICE_PDF_BASE_PATH=/path/reale/ai/pdf/<slug>/<TENANT_PDF_DIR>` (es. `/mnt/praticavoice-pdf/pelago/PDF`)
+  - `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://host`
+  - Configura DB/QUEUE/MAIL/OPENAI/R2 secondo ambiente.
+- Prepara storage/link: assicurati che `PRACTICE_PDF_BASE_PATH` esista e che `php artisan storage:link` punti a `public/storage`.
+- Cache/config: `php artisan config:clear && php artisan cache:clear` al primo avvio; facoltativo `php artisan config:cache route:cache view:cache` a fine deploy.
+- Migrazioni (se DB nuovo): `php artisan migrate --force`.
+- Worker code: avvia `php artisan queue:work --daemon` (via supervisor/systemd) per fascicoli/indicizzazioni.
+- Permessi: l’utente PHP deve leggere i PDF e scrivere in `storage/` e `bootstrap/cache/`.
+- Verifica rapida: apri `/dashboard` (badge tenant), apri una pratica e controlla link PDF; se necessario lancia `php artisan pdf:index --no-interaction`.
+
 ## 🧠 Note su prestazioni e UI
 - Le anteprime PDF sono generate lato client con PDF.js; su pratiche grandi il caricamento può essere lento.
 - Il comportamento è mitigato da:

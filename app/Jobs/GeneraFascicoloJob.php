@@ -10,6 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use ZipArchive;
+use App\Support\Tenant;
 
 class GeneraFascicoloJob implements ShouldQueue
 {
@@ -52,7 +53,7 @@ class GeneraFascicoloJob implements ShouldQueue
         ]);
 
         $pratica = $fascicolo->pratica;
-        $baseFolder = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $pratica->cartella;
+        $baseFolder = Tenant::praticaPdfFolder($pratica->cartella);
         $baseFolderReal = realpath($baseFolder);
 
         if (!$baseFolderReal) {

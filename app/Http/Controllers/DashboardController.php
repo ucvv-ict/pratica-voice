@@ -12,94 +12,117 @@ class DashboardController extends Controller
     {
         $query = Pratica::query();
 
-        /* -------------------------------------------------
-         * 🔍 Ricerca full-text (multi campo)
-         * ------------------------------------------------- */
-        if ($request->filled('q')) {
-            $q = $request->q;
+        // Raccogliamo tutti i filtri gestiti (alias compresi)
+        $filters = $request->only([
+            'q',
+            'id',
+            'numero_protocollo',
+            'numero_pratica',
+            'anno',
+            'oggetto',
+            'richiedente',
+            'tipo',
+            'via',
+            'civico',
+            'riferimento_libero',
+            'nota',
+            'foglio',
+            'particella_sub',
+            'protocollo_da',
+            'protocollo_a',
+            'rilascio_da',
+            'rilascio_a',
+            'created_da',
+            'created_a',
+            'pratica_id',
+            'numero_rilascio',
+            'pdf',
+            'vuote',
+        ]);
 
-            $query->where(function($s) use ($q) {
-                $s->where('oggetto', 'like', "%$q%")
-                  ->orWhere('rich_cognome1', 'like', "%$q%")
-                  ->orWhere('rich_nome1', 'like', "%$q%")
-                  ->orWhere('numero_pratica', 'like', "%$q%")
-                  ->orWhere('area_circolazione', 'like', "%$q%")
-                  ->orWhere('civico_esponente', 'like', "%$q%");
+        // Compatibilità con vecchi parametri
+        $filters['richiedente'] = $filters['richiedente'] ?? $request->input('cognome');
+        $filters['anno'] = $filters['anno'] ?? $request->input('anno_presentazione');
+
+        // Ricerca globale
+        if (filled($filters['q'] ?? null)) {
+            $term = $filters['q'];
+
+            $query->where(function ($s) use ($term) {
+                $s->where('numero_protocollo', 'like', "%{$term}%")
+                  ->orWhere('numero_pratica', 'like', "%{$term}%")
+                  ->orWhere('oggetto', 'like', "%{$term}%")
+                  ->orWhere('rich_cognome1', 'like', "%{$term}%")
+                  ->orWhere('rich_nome1', 'like', "%{$term}%")
+                  ->orWhere('rich_cognome2', 'like', "%{$term}%")
+                  ->orWhere('rich_nome2', 'like', "%{$term}%");
             });
         }
 
+        // Filtri a uguaglianza
+        $exactFilters = [
+            'id' => 'id',
+            'numero_protocollo' => 'numero_protocollo',
+            'numero_pratica' => 'numero_pratica',
+            'anno' => 'anno_presentazione',
+            'tipo' => 'sigla_tipo_pratica',
+            'foglio' => 'foglio',
+            'pratica_id' => 'pratica_id',
+            'numero_rilascio' => 'numero_rilascio',
+        ];
 
-        /* -------------------------------------------------
-         * 🎚 Filtri standard
-         * ------------------------------------------------- */
-
-        if ($request->filled('anno')) {
-            $query->where('anno_presentazione', $request->anno);
+        foreach ($exactFilters as $input => $column) {
+            if (filled($filters[$input] ?? null)) {
+                $query->where($column, $filters[$input]);
+            }
         }
 
-        if ($request->filled('cognome')) {
-            $c = $request->cognome;
+        // Filtri LIKE
+        $likeFilters = [
+            'oggetto' => 'oggetto',
+            'riferimento_libero' => 'riferimento_libero',
+            'nota' => 'nota',
+            'via' => 'area_circolazione',
+            'civico' => 'civico_esponente',
+            'particella_sub' => 'particella_sub',
+        ];
 
-            $query->where(function($q) use ($c) {
-                $q->where('rich_cognome1', 'LIKE', "%$c%")
-                  ->orWhere('rich_nome1', 'LIKE', "%$c%")
-                  ->orWhere('rich_cognome2', 'LIKE', "%$c%")
-                  ->orWhere('rich_nome2', 'LIKE', "%$c%")
-                  ->orWhere('rich_cognome3', 'LIKE', "%$c%")
-                  ->orWhere('rich_nome3', 'LIKE', "%$c%");
+        foreach ($likeFilters as $input => $column) {
+            if (filled($filters[$input] ?? null)) {
+                $query->where($column, 'like', '%' . $filters[$input] . '%');
+            }
+        }
+
+        // Richiedente: cerca su tutti i campi nome/cognome
+        if (filled($filters['richiedente'] ?? null)) {
+            $name = $filters['richiedente'];
+
+            $query->where(function ($q) use ($name) {
+                $q->where('rich_cognome1', 'LIKE', "%{$name}%")
+                  ->orWhere('rich_nome1', 'LIKE', "%{$name}%")
+                  ->orWhere('rich_cognome2', 'LIKE', "%{$name}%")
+                  ->orWhere('rich_nome2', 'LIKE', "%{$name}%")
+                  ->orWhere('rich_cognome3', 'LIKE', "%{$name}%")
+                  ->orWhere('rich_nome3', 'LIKE', "%{$name}%");
             });
         }
 
-        if ($request->filled('tipo')) {
-            $query->where('sigla_tipo_pratica', $request->tipo);
+        // Range di date
+        $dateRanges = [
+            'data_protocollo' => ['from' => 'protocollo_da', 'to' => 'protocollo_a'],
+            'data_rilascio' => ['from' => 'rilascio_da', 'to' => 'rilascio_a'],
+            'created_at' => ['from' => 'created_da', 'to' => 'created_a'],
+        ];
+
+        foreach ($dateRanges as $column => $range) {
+            if (filled($filters[$range['from']] ?? null)) {
+                $query->whereDate($column, '>=', $filters[$range['from']]);
+            }
+
+            if (filled($filters[$range['to']] ?? null)) {
+                $query->whereDate($column, '<=', $filters[$range['to']]);
+            }
         }
-
-        if ($request->filled('via')) {
-            $query->where('area_circolazione', 'like', "%".$request->via."%");
-        }
-
-        if ($request->filled('numero_pratica')) {
-            $query->where('numero_pratica', $request->numero_pratica);
-        }
-
-
-        /* -------------------------------------------------
-         * 📅 Filtri avanzati
-         * ------------------------------------------------- */
-
-        if ($request->filled('protocollo_da')) {
-            $query->where('data_protocollo', '>=', $request->protocollo_da);
-        }
-
-        if ($request->filled('protocollo_a')) {
-            $query->where('data_protocollo', '<=', $request->protocollo_a);
-        }
-
-        if ($request->filled('rilascio_da')) {
-            $query->where('data_rilascio', '>=', $request->rilascio_da);
-        }
-
-        if ($request->filled('rilascio_a')) {
-            $query->where('data_rilascio', '<=', $request->rilascio_a);
-        }
-
-        if ($request->filled('foglio')) {
-            $query->where('foglio', $request->foglio);
-        }
-
-        if ($request->filled('particella_sub')) {
-            $query->where('particella_sub', 'like', "%".$request->particella_sub."%");
-        }
-
-        if ($request->filled('nota')) {
-            $query->where('nota', 'like', "%".$request->nota."%");
-        }
-
-        if ($request->filled('riferimento_libero')) {
-            $query->where('riferimento_libero', 'like', "%".$request->riferimento_libero."%");
-        }
-
-
 
         /* -------------------------------------------------
          * 📄 Ricerca nei PDF (fase 1: filtriamo gli ID)
@@ -108,12 +131,12 @@ class DashboardController extends Controller
         $pdfTerm = null;
         $pdfMatches = [];
 
-        if ($request->filled('pdf')) {
-            $pdfTerm = $request->pdf;
+        if (filled($filters['pdf'] ?? null)) {
+            $pdfTerm = $filters['pdf'];
 
             $pdfMatches = DB::table('pdf_index')
                 ->select('pratica_id')
-                ->where('content', 'LIKE', "%$pdfTerm%")
+                ->where('content', 'LIKE', "%{$pdfTerm}%")
                 ->distinct()
                 ->pluck('pratica_id')
                 ->toArray();
@@ -140,7 +163,7 @@ class DashboardController extends Controller
             $results->transform(function($p) use ($pdfTerm) {
                 $p->pdf_hits = DB::table('pdf_index')
                     ->where('pratica_id', $p->id)
-                    ->where('content', 'LIKE', "%$pdfTerm%")
+                    ->where('content', 'LIKE', "%{$pdfTerm}%")
                     ->pluck('file')
                     ->toArray();
                 return $p;
@@ -185,37 +208,15 @@ class DashboardController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        /* -------------------------------------------------
-        * 🔢 Conteggio filtri attivi per sezione (coerente con la UI)
-        * ------------------------------------------------- */
-
-        $filterSections = [
-            'base' => ['q', 'cognome', 'anno', 'numero_pratica'],
-            'pratica' => ['tipo', 'riferimento_libero', 'nota'],
-            'loco' => ['via', 'civico'],
-            'catasto' => ['foglio', 'particella_sub'],
-            'protocollo' => ['protocollo_da', 'protocollo_a', 'rilascio_da', 'rilascio_a'],
-            'pdfsec' => ['pdf'],
-        ];
-
-        $activePerSection = [];
-        $activeFilters = 0;
-
-        foreach ($filterSections as $section => $fields) {
-            $count = 0;
-            foreach ($fields as $f) {
-                if (request()->filled($f)) {
-                    $count++;
-                }
-            }
-            $activePerSection[$section] = $count;
-            $activeFilters += $count;
-        }
+        // Conteggio filtri attivi (allineato con la UI unificata)
+        $activeFilters = collect($filters)
+            ->filter(fn ($value) => filled($value))
+            ->count();
 
         return view('dashboard.index', [
             'pratiche' => $pratiche,
             'activeFilters' => $activeFilters,
-            'activePerSection' => $activePerSection,
+            'filters' => $filters,
         ]);
     }
 }

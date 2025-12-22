@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\Pratica;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
+use App\Support\Tenant;
 
 class IndexPdfCommand extends Command
 {
@@ -42,7 +43,7 @@ class IndexPdfCommand extends Command
 
             try {
 
-                $cartellaPath = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $p->cartella;
+                $cartellaPath = Tenant::praticaPdfFolder($p->cartella);
 
                 if (!File::exists($cartellaPath)) {
                     $this->line("\n⚠️ Cartella mancante per pratica {$p->id}: {$p->cartella}");

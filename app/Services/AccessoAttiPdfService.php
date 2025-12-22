@@ -6,6 +6,7 @@ use setasign\Fpdi\Fpdi;
 use App\Models\AccessoAtti;
 use App\Models\AccessoAttiElemento;
 use Smalot\PdfParser\Parser;
+use App\Support\Tenant;
 
 class AccessoAttiPdfService
 {
@@ -22,8 +23,8 @@ class AccessoAttiPdfService
     {
         if ($el->tipo === 'file_pratica') {
 
-            $base = rtrim(config('pratica.pdf_base_path'), '/');
-            return $base . '/' . $el->file->cartella . '/' . $el->file->file;
+            $base = Tenant::praticaPdfFolder($el->file->cartella);
+            return $base . '/' . $el->file->file;
 
         } else {
 
@@ -127,7 +128,7 @@ class AccessoAttiPdfService
         }
 
         $pdf->SetFont('Helvetica', 'B', 16);
-        $pdf->Cell(0, 10, "COMUNE DI PELAGO", 0, 1, 'C');
+        $pdf->Cell(0, 10, strtoupper(Tenant::name()), 0, 1, 'C');
 
         $pdf->SetFont('Helvetica', 'B', 13);
         $pdf->Cell(0, 8, "UFFICIO TECNICO - EDILIZIA PRIVATA", 0, 1, 'C');

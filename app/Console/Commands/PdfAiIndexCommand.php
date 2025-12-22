@@ -9,6 +9,7 @@ use App\Models\PdfAiClassification;
 use App\Models\PdfAiEmbedding;
 use Illuminate\Support\Facades\File;
 use OpenAI;
+use App\Support\Tenant;
 
 class PdfAiIndexCommand extends Command
 {
@@ -52,7 +53,7 @@ class PdfAiIndexCommand extends Command
             //
             // 2️⃣ Determiniamo percorso file
             //
-            $folder = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $pdf->pratica->cartella;
+            $folder = Tenant::praticaPdfFolder($pdf->pratica->cartella);
             $path   = $folder . '/' . $pdf->file;
 
             if (!file_exists($path)) {

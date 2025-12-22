@@ -125,8 +125,8 @@ Route::get('/pdf-laravel/{cartella}/{file}', function ($cartella, $file) {
     $cartella = rawurldecode($cartella);
     $file = rawurldecode($file);
 
-    $base = rtrim(config('pratica.pdf_base_path'), '/');
-    $path = $base . '/' . $cartella . '/' . $file;
+    $base = \App\Support\Tenant::praticaPdfFolder($cartella);
+    $path = $base . '/' . $file;
 
     // blocca directory traversal
     if (str_contains($file, '..') || str_contains($cartella, '..') || str_contains($file, '/')) {

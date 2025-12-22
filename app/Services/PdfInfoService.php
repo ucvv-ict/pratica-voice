@@ -4,13 +4,14 @@ namespace App\Services;
 
 use App\Models\PdfFile;
 use Smalot\PdfParser\Parser;
+use App\Support\Tenant;
 
 class PdfInfoService
 {
     public function contaPagine(PdfFile $file): int
     {
-        $base = rtrim(config('pratica.pdf_base_path'), '/');
-        $filePath = $base . '/' . $file->cartella . '/' . $file->file;
+        $base = Tenant::praticaPdfFolder($file->cartella);
+        $filePath = $base . '/' . $file->file;
 
         if (!file_exists($filePath)) {
             throw new \Exception("File non trovato: " . $filePath);

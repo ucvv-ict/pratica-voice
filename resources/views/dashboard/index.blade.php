@@ -1,95 +1,89 @@
 @extends('layout')
 
 @section('content')
-<script src="//unpkg.com/alpinejs" defer></script>
-
 <div class="p-6 max-w-7xl mx-auto">
+@php
+    $filtersOpen = $activeFilters > 0;
+    function filterActive(string $name): string {
+        return request()->filled($name) ? 'border-yellow-400 ring-1 ring-yellow-300' : '';
+    }
+@endphp
 
     <h1 class="text-2xl font-bold mb-6">
         📁 Archivio Pratiche — Dashboard
 
         @if($activeFilters > 0)
-            <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+            <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full dark:bg-blue-500">
                 {{ $activeFilters }} filtri attivi
             </span>
         @endif
     </h1>
 
     {{-- 🔍 Barra filtri --}}
-    <form method="GET" class="space-y-4 bg-gray-100 p-4 rounded" x-data="{ 
-        base: true, 
-        pratica: false, 
-        rich: false,
-        loco: false,
-        catasto: false,
-        protocollo: false,
-        pdfsec: false
-    }">
-
-        <!-- =============================== -->
-        <!-- 📌 Ricerca Base (sempre visibile) -->
-        <!-- =============================== -->
-        <div>
-            <h3 class="text-md font-bold">
-                📌 Ricerca Base
-                @if(($activePerSection['base'] ?? 0) > 0)
-                    <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
-                        {{ $activePerSection['base'] }}
+    <form method="GET" class="bg-white shadow rounded-xl border border-gray-200 p-4 space-y-4">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h3 class="text-lg font-semibold">Filtri</h3>
+            <div class="flex items-center gap-3">
+                @if($activeFilters > 0)
+                    <span class="bg-blue-600 text-white text-xs px-3 py-1 rounded-full dark:bg-blue-500">
+                        {{ $activeFilters }} attivi
                     </span>
                 @endif
-            </h3>
-
-            <div class="grid grid-cols-6 gap-4 mt-2">
-                <div class="col-span-2">
-                    <label class="block text-xs mb-1">Ricerca libera</label>
-                    <input type="text" name="q" value="{{ request('q') }}"
-                        class="p-2 border rounded w-full">
-                </div>
-
-                <div>
-                    <label class="block text-xs mb-1">Cognome richiedente</label>
-                    <input type="text" name="cognome" value="{{ request('cognome') }}"
-                        class="p-2 border rounded w-full">
-                </div>
-
-                <div>
-                    <label class="block text-xs mb-1">Anno</label>
-                    <input type="number" name="anno" value="{{ request('anno') }}"
-                        class="p-2 border rounded w-full">
-                </div>
-
-                <div>
-                    <label class="block text-xs mb-1">Numero pratica</label>
-                    <input type="text" name="numero_pratica" value="{{ request('numero_pratica') }}"
-                        class="p-2 border rounded w-full">
-                </div>
+                <button type="button" id="filters-toggle"
+                        class="text-sm px-3 py-1 rounded border border-gray-300 bg-gray-100 hover:bg-gray-200
+                               dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100 dark:border-gray-600">
+                    {{ $filtersOpen ? 'Nascondi' : 'Mostra' }} filtri
+                </button>
             </div>
         </div>
 
-
-        <!-- =============================== -->
-        <!-- 📂 Dati Pratica -->
-        <!-- =============================== -->
-        <div class="border p-3 rounded bg-white">
-            <button type="button" @click="pratica = !pratica"
-                    class="flex justify-between w-full text-left font-semibold">
-
-                <span>
-                    📂 Dati Pratica
-                    @if(($activePerSection['pratica'] ?? 0) > 0)
-                        <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
-                            {{ $activePerSection['pratica'] }}
-                        </span>
-                    @endif
-                </span>
-
-                <span x-text="pratica ? '▲' : '▼'"></span>
-            </button>
-
-            <div x-show="pratica" class="mt-3 grid grid-cols-6 gap-4">
+        <div id="filters-body" class="{{ $filtersOpen ? '' : 'hidden' }} space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs mb-1">Tipo pratica</label>
-                    <select name="tipo" class="p-2 border rounded w-full">
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Ricerca globale</label>
+                    <input type="text" name="q" value="{{ request('q') }}"
+                        class="p-2 border rounded w-full {{ filterActive('q') }}" placeholder="Protocollo, oggetto o richiedente">
+                </div>
+
+                <div>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">ID</label>
+                    <input type="number" name="id" value="{{ request('id') }}"
+                        class="p-2 border rounded w-full {{ filterActive('id') }}" min="1">
+                </div>
+
+                <div>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Numero protocollo</label>
+                    <input type="text" name="numero_protocollo" value="{{ request('numero_protocollo') }}"
+                        class="p-2 border rounded w-full {{ filterActive('numero_protocollo') }}">
+                </div>
+
+                <div>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Numero pratica</label>
+                    <input type="text" name="numero_pratica" value="{{ request('numero_pratica') }}"
+                        class="p-2 border rounded w-full {{ filterActive('numero_pratica') }}">
+                </div>
+
+                <div>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Anno presentazione</label>
+                    <input type="number" name="anno" value="{{ request('anno') }}"
+                        class="p-2 border rounded w-full {{ filterActive('anno') }}">
+                </div>
+
+                <div>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Oggetto</label>
+                    <input type="text" name="oggetto" value="{{ request('oggetto') }}"
+                        class="p-2 border rounded w-full {{ filterActive('oggetto') }}">
+                </div>
+
+                <div>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Richiedente</label>
+                    <input type="text" name="richiedente" value="{{ request('richiedente') ?? request('cognome') }}"
+                        class="p-2 border rounded w-full {{ filterActive('richiedente') ?: filterActive('cognome') }}" placeholder="Nome o cognome">
+                </div>
+
+                <div>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Tipo pratica</label>
+                    <select name="tipo" class="p-2 border rounded w-full {{ filterActive('tipo') }}">
                         <option value="">Tutte</option>
                         @foreach(\App\Models\Pratica::select('sigla_tipo_pratica')->distinct()->pluck('sigla_tipo_pratica') as $tipo)
                             <option value="{{ $tipo }}" @selected(request('tipo') == $tipo)>{{ $tipo }}</option>
@@ -97,193 +91,106 @@
                     </select>
                 </div>
 
-                <div class="col-span-2">
-                    <label class="block text-xs mb-1">Riferimento libero</label>
-                    <input type="text" name="riferimento_libero" value="{{ request('riferimento_libero') }}"
-                        class="p-2 border rounded w-full">
-                </div>
-
-                <div class="col-span-3">
-                    <label class="block text-xs mb-1">Nota</label>
-                    <input type="text" name="nota" value="{{ request('nota') }}"
-                        class="p-2 border rounded w-full">
-                </div>
-            </div>
-        </div>
-
-
-        <!-- =============================== -->
-        <!-- 🏛️ Localizzazione -->
-        <!-- =============================== -->
-        <div class="border p-3 rounded bg-white">
-            <button type="button" @click="loco = !loco"
-                    class="flex justify-between w-full text-left font-semibold">
-
-                <span>
-                    🏛️ Localizzazione
-                    @if(($activePerSection['loco'] ?? 0) > 0)
-                        <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
-                            {{ $activePerSection['loco'] }}
-                        </span>
-                    @endif
-                </span>
-
-                <span x-text="loco ? '▲' : '▼'"></span>
-            </button>
-
-            <div x-show="loco" class="mt-3 grid grid-cols-6 gap-4">
                 <div>
-                    <label class="block text-xs mb-1">Via</label>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Via</label>
                     <input type="text" name="via" value="{{ request('via') }}"
-                        class="p-2 border rounded w-full">
+                        class="p-2 border rounded w-full {{ filterActive('via') }}">
                 </div>
 
                 <div>
-                    <label class="block text-xs mb-1">Civico</label>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Civico</label>
                     <input type="text" name="civico" value="{{ request('civico') }}"
-                        class="p-2 border rounded w-full">
+                        class="p-2 border rounded w-full {{ filterActive('civico') }}">
                 </div>
-            </div>
-        </div>
 
-
-        <!-- =============================== -->
-        <!-- 🗄️ Dati Catastali -->
-        <!-- =============================== -->
-        <div class="border p-3 rounded bg-white">
-            <button type="button" @click="catasto = !catasto"
-                    class="flex justify-between w-full text-left font-semibold">
-
-                <span>
-                    🗄️ Dati Catastali
-                    @if(($activePerSection['catasto'] ?? 0) > 0)
-                        <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
-                            {{ $activePerSection['catasto'] }}
-                        </span>
-                    @endif
-                </span>
-
-                <span x-text="catasto ? '▲' : '▼'"></span>
-            </button>
-
-            <div x-show="catasto" class="mt-3 grid grid-cols-6 gap-4">
                 <div>
-                    <label class="block text-xs mb-1">Foglio</label>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Foglio</label>
                     <input type="text" name="foglio" value="{{ request('foglio') }}"
-                        class="p-2 border rounded w-full">
+                        class="p-2 border rounded w-full {{ filterActive('foglio') }}">
                 </div>
 
                 <div>
-                    <label class="block text-xs mb-1">Particella / Sub</label>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Particella / Sub</label>
                     <input type="text" name="particella_sub" value="{{ request('particella_sub') }}"
-                        class="p-2 border rounded w-full">
+                        class="p-2 border rounded w-full {{ filterActive('particella_sub') }}">
                 </div>
-            </div>
-        </div>
 
-
-        <!-- =============================== -->
-        <!-- 🗂️ Protocollo & Rilascio -->
-        <!-- =============================== -->
-        <div class="border p-3 rounded bg-white">
-            <button type="button" @click="protocollo = !protocollo"
-                    class="flex justify-between w-full text-left font-semibold">
-
-                <span>
-                    📑 Protocollo & Rilascio
-                    @if(($activePerSection['protocollo'] ?? 0) > 0)
-                        <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
-                            {{ $activePerSection['protocollo'] }}
-                        </span>
-                    @endif
-                </span>
-
-                <span x-text="protocollo ? '▲' : '▼'"></span>
-            </button>
-
-            <div x-show="protocollo" class="mt-3 grid grid-cols-6 gap-4">
                 <div>
-                    <label class="block text-xs mb-1">Protocollo da</label>
-                    <input type="date" name="protocollo_da" value="{{ request('protocollo_da') }}"
-                        class="p-2 border rounded w-full">
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Riferimento libero</label>
+                    <input type="text" name="riferimento_libero" value="{{ request('riferimento_libero') }}"
+                        class="p-2 border rounded w-full {{ filterActive('riferimento_libero') }}">
                 </div>
+
                 <div>
-                    <label class="block text-xs mb-1">Protocollo a</label>
-                    <input type="date" name="protocollo_a" value="{{ request('protocollo_a') }}"
-                        class="p-2 border rounded w-full">
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Nota</label>
+                    <input type="text" name="nota" value="{{ request('nota') }}"
+                        class="p-2 border rounded w-full {{ filterActive('nota') }}">
                 </div>
+
+                <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Data protocollo da</label>
+                        <input type="date" name="protocollo_da" value="{{ request('protocollo_da') }}"
+                            class="p-2 border rounded w-full {{ filterActive('protocollo_da') }}">
+                    </div>
+                    <div>
+                        <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Data protocollo a</label>
+                        <input type="date" name="protocollo_a" value="{{ request('protocollo_a') }}"
+                            class="p-2 border rounded w-full {{ filterActive('protocollo_a') }}">
+                    </div>
+                </div>
+
+                <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Data rilascio da</label>
+                        <input type="date" name="rilascio_da" value="{{ request('rilascio_da') }}"
+                            class="p-2 border rounded w-full {{ filterActive('rilascio_da') }}">
+                    </div>
+                    <div>
+                        <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Data rilascio a</label>
+                        <input type="date" name="rilascio_a" value="{{ request('rilascio_a') }}"
+                            class="p-2 border rounded w-full {{ filterActive('rilascio_a') }}">
+                    </div>
+                </div>
+
+                <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Creato da</label>
+                        <input type="date" name="created_da" value="{{ request('created_da') }}"
+                            class="p-2 border rounded w-full {{ filterActive('created_da') }}">
+                    </div>
+                    <div>
+                        <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Creato a</label>
+                        <input type="date" name="created_a" value="{{ request('created_a') }}"
+                            class="p-2 border rounded w-full {{ filterActive('created_a') }}">
+                    </div>
+                </div>
+
                 <div>
-                    <label class="block text-xs mb-1">Rilascio da</label>
-                    <input type="date" name="rilascio_da" value="{{ request('rilascio_da') }}"
-                        class="p-2 border rounded w-full">
-                </div>
-                <div>
-                    <label class="block text-xs mb-1">Rilascio a</label>
-                    <input type="date" name="rilascio_a" value="{{ request('rilascio_a') }}"
-                        class="p-2 border rounded w-full">
-                </div>
-            </div>
-        </div>
-
-        <!-- =============================== -->
-        <!-- 📄 Ricerca nei PDF -->
-        <!-- =============================== -->
-        <div class="border p-3 rounded bg-white">
-            <button type="button" @click="pdfsec = !pdfsec"
-                    class="flex justify-between w-full text-left font-semibold">
-
-                <span>
-                    🔎 Ricerca nei PDF
-                    @if(($activePerSection['pdfsec'] ?? 0) > 0)
-                        <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
-                            {{ $activePerSection['pdfsec'] }}
-                        </span>
-                    @endif
-                </span>
-
-                <span x-text="pdfsec ? '▲' : '▼'"></span>
-            </button>
-
-            <div x-show="pdfsec" class="mt-3 grid grid-cols-6 gap-4">
-                <div class="col-span-2">
-                    <label class="block text-xs mb-1">Testo da cercare nei PDF</label>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Testo nei PDF</label>
                     <input type="text" name="pdf" value="{{ request('pdf') }}"
-                        class="p-2 border rounded w-full">
+                        class="p-2 border rounded w-full {{ filterActive('pdf') }}">
                 </div>
+
+                <label class="flex items-center gap-2 text-sm mt-6 md:mt-0">
+                    <input type="checkbox" name="vuote" value="1" @checked(request('vuote') == '1') class="h-4 w-4 {{ request('vuote') == '1' ? 'ring-2 ring-yellow-300 border-yellow-400' : '' }}">
+                    <span>Solo pratiche senza file</span>
+                </label>
             </div>
         </div>
 
-        <!-- =============================== -->
-        <!-- BOTTONI -->
-        <!-- =============================== -->
-        <div>
-            <button class="bg-blue-600 text-white px-4 py-2 rounded w-full">
+        <div class="flex flex-wrap items-center gap-3 justify-end pt-2">
+            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow">
                 🔍 Filtra
             </button>
+            <a href="{{ route('dashboard') }}"
+               onclick="localStorage.removeItem('dashboardFilters'); localStorage.removeItem('dashboardReturn');"
+               class="inline-flex items-center gap-2 px-4 py-2 rounded shadow border border-gray-300 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold
+                      dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white dark:border-gray-500">
+                🔄 <span>Reset filtri</span>
+            </a>
         </div>
-
     </form>
-    
-    
-
-    <div class="mt-3">
-        <a href="#" 
-        onclick="resetDashboardFilters()"
-        class="inline-block bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded shadow">
-            🔄 Reset filtri
-        </a>
-    </div>
-
-    <script>
-    function resetDashboardFilters() {
-        // 🔥 Cancella filtri salvati
-        localStorage.removeItem('dashboardFilters');
-        localStorage.removeItem('dashboardReturn');
-
-        // 🔥 Vai alla dashboard pulita
-        window.location = '/dashboard';
-    }
-    </script>
 
     {{-- 📊 Tabella risultati --}}
     <div class="mt-6 bg-white shadow rounded p-4">
@@ -467,8 +374,18 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const dashboardForm = document.querySelector('form[method="GET"]');
+    const filterToggle = document.getElementById('filters-toggle');
+    const filterBody = document.getElementById('filters-body');
 
     if (!dashboardForm) return;
+
+    // Apertura/chiusura dei filtri
+    if (filterToggle && filterBody) {
+        filterToggle.addEventListener('click', () => {
+            filterBody.classList.toggle('hidden');
+            filterToggle.textContent = filterBody.classList.contains('hidden') ? 'Mostra filtri' : 'Nascondi filtri';
+        });
+    }
 
     // 🔹 Al submit → salva i filtri nel localStorage
     dashboardForm.addEventListener('submit', () => {

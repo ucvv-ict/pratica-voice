@@ -9,6 +9,7 @@ use App\Models\FascicoloGenerazione as FascicoloZip;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use App\Jobs\GeneraFascicoloJob;
+use App\Support\Tenant;
 
 class PraticaController extends Controller
 {
@@ -47,7 +48,7 @@ class PraticaController extends Controller
         $pratica = Pratica::findOrFail($id);
 
         // 📁 Percorso cartella PDF della pratica
-        $folder = rtrim(config('pratica.pdf_base_path'), '/') . '/' . $pratica->cartella;
+        $folder = Tenant::praticaPdfFolder($pratica->cartella);
 
         // 📄 Lista PDF nella cartella
         $pdfFiles = collect(File::files($folder))

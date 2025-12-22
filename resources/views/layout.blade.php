@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>PraticaVoice</title>
+    <title>{{ \App\Support\Tenant::name() }} — PraticaVoice</title>
     <script>
     // Applica il tema salvato il prima possibile per evitare flash
     (function () {
@@ -340,6 +340,9 @@
                         alt="PraticaVoice"
                         class="logo-dark h-16 w-auto">
                 </a>
+                <span class="text-sm font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-800">
+                    {{ \App\Support\Tenant::name() }}
+                </span>
                 <a href="/voice.html" class="text-blue-600 underline">🎤 Ricerca vocale</a>
             </div>
             <button id="themeToggle"

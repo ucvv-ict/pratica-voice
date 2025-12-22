@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenant;
 
 class PdfFile extends Model
 {
@@ -33,6 +34,6 @@ class PdfFile extends Model
 
     public function getPathAttribute()
     {
-        return storage_path("app/public/PELAGO/PDF/{$this->cartella}/{$this->file}");
+        return Tenant::praticaPdfFolder($this->cartella) . '/' . $this->file;
     }
 }
