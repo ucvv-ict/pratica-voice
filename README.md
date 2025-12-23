@@ -100,6 +100,13 @@ Email istituzionale:  segreteria@ucvv.it
 - Permessi: l’utente PHP deve leggere i PDF e scrivere in `storage/` e `bootstrap/cache/`.
 - Verifica rapida: apri `/dashboard` (badge tenant), apri una pratica e controlla link PDF; se necessario lancia `php artisan pdf:index --no-interaction`.
 
+### Permessi filesystem in ambienti on-prem
+In ambienti on-prem con filesystem montati (CIFS, bind mount, NFS, ecc.), lo script di deploy non forza il cambio ownership delle directory `storage/` e `bootstrap/cache`. I permessi corretti devono essere impostati in fase di prima installazione. Durante i deploy successivi, i permessi vengono applicati in modalità best-effort senza interrompere il processo.
+
+### Nota su Git safe.directory (on-prem)
+- Git >= 2.35 richiede di marcare il repo come sicuro in ambienti server multi-utente:
+  - `sudo git config --system --add safe.directory /var/www/praticavoice`
+
 ## 🧠 Note su prestazioni e UI
 - Le anteprime PDF sono generate lato client con PDF.js; su pratiche grandi il caricamento può essere lento.
 - Il comportamento è mitigato da:

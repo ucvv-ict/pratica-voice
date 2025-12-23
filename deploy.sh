@@ -77,10 +77,18 @@ log "⚡ Rigenero cache"
 sudo -u "${APP_USER}" -g "${APP_GROUP}" php artisan config:cache
 sudo -u "${APP_USER}" -g "${APP_GROUP}" php artisan route:cache
 
-log "🔒 Permessi storage e cache"
-chown -R "${APP_USER}:${APP_GROUP}" storage bootstrap/cache
-find storage bootstrap/cache -type d -exec chmod 775 {} \;
-find storage bootstrap/cache -type f -exec chmod 664 {} \;
+log "🔒 Permessi storage e cache (best-effort)"
+
+for DIR in storage bootstrap/cache; do
+    if mountpoint -q "$DIR"; then
+        log "⚠️  $DIR è un mountpoint, skip chown"
+        continue
+    fi
+
+    chown -R "${APP_USER}:${APP_GROUP}" "$DIR" || log "⚠️  chown non consentito su $DIR"
+    find "$DIR" -type d -exec chmod 775 {} \; || true
+    find "$DIR" -type f -exec chmod 664 {} \; || true
+done
 
 log "✅ App online"
 sudo -u "${APP_USER}" -g "${APP_GROUP}" php artisan up
