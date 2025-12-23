@@ -10,9 +10,14 @@ class AppVersion
         $hash = trim((string) shell_exec('git rev-parse --short HEAD'));
 
         if (!empty($tag)) {
-            return $tag;
+            return self::normalizeTag($tag);
         }
 
         return 'dev (' . $hash . ')';
+    }
+
+    private static function normalizeTag(string $tag): string
+    {
+        return str_starts_with($tag, 'v') ? $tag : 'v' . $tag;
     }
 }
