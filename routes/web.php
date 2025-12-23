@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PraticaController;
 use App\Http\Controllers\AccessoAttiController;
 use App\Http\Controllers\FascicoloZipController;
+use App\Http\Controllers\InfoSistemaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -149,3 +150,6 @@ Route::get('/pdf-laravel/{cartella}/{file}', function ($cartella, $file) {
     'cartella' => '[^/]+',
     'file'     => '[^/]+',
 ])->name('pdf.serve');
+
+Route::get('/info-sistema', [InfoSistemaController::class, 'index'])
+    ->name('info-sistema');
