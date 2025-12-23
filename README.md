@@ -123,3 +123,62 @@ In ambienti on-prem con filesystem montati (CIFS, bind mount, NFS, ecc.), lo scr
 - Il progetto utilizza componenti Blade custom, tra cui:
   - `<x-back-button>`
 - Assicurarsi che la directory `resources/views/components` sia presente in ogni installazione.
+
+## Queue di Laravel (obbligatoria in produzione)
+PraticaVoice utilizza la queue per operazioni asincrone (es. generazione fascicoli ZIP, indicizzazione PDF). In produzione non va usata la modalità `sync`: senza worker attivo i job restano `pending` e le operazioni non vengono completate.
+
+### Configurazione applicativa
+Nel file `.env`:
+```env
+QUEUE_CONNECTION=database
+```
+Assicurarsi che le tabelle della queue esistano:
+```bash
+php artisan queue:table
+php artisan migrate
+```
+
+### Worker di sistema (systemd)
+Eseguire il worker come servizio di sistema.
+
+Percorso file: `/etc/systemd/system/praticavoice-queue.service`
+```ini
+[Unit]
+Description=PraticaVoice Queue Worker
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/php /var/www/praticavoice/artisan queue:work database --sleep=3 --tries=3 --timeout=120
+StandardOutput=append:/var/log/praticavoice-queue.log
+StandardError=append:/var/log/praticavoice-queue.log
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Attivare il servizio:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable praticavoice-queue
+sudo systemctl start praticavoice-queue
+```
+
+### Verifica e troubleshooting
+Stato servizio:
+```bash
+sudo systemctl status praticavoice-queue
+```
+Log in tempo reale:
+```bash
+tail -f /var/log/praticavoice-queue.log
+```
+Se il servizio non è attivo i job restano pendenti e le operazioni asincrone non terminano.
+
+Nota (consigliato): riavvio dopo un deploy:
+```bash
+systemctl restart praticavoice-queue
+```
