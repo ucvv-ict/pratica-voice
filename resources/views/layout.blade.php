@@ -352,10 +352,21 @@
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto main-content">
-        @yield('content')
-    </div>
+<div class="max-w-7xl mx-auto main-content">
+    @yield('content')
+</div>
 
+<footer class="max-w-7xl mx-auto mt-10 mb-6 px-4 text-sm text-gray-500 dark:text-gray-400">
+    <div class="flex flex-wrap items-center gap-3">
+        <span class="font-semibold text-gray-700 dark:text-gray-200">PraticaVoice</span>
+        <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
+            v{{ $appVersion }} · {{ config('praticavoice.mode') }}
+        </span>
+        <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-800">
+            {{ \App\Support\Tenant::name() }}
+        </span>
+    </div>
+</footer>
     <script>
     (function () {
         const btn = document.getElementById('themeToggle');
