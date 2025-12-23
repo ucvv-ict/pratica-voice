@@ -97,6 +97,6 @@ log "🔄 Ricarico Apache"
 systemctl reload apache2
 
 log "ℹ️  Versione installata:"
-sudo -u "${APP_USER}" -g "${APP_GROUP}" php artisan tinker --execute="\\App\\Support\\AppVersion::version();"
+sudo -u "${APP_USER}" -g "${APP_GROUP}" php -r "require 'vendor/autoload.php'; echo App\\Support\\AppVersion::version() . PHP_EOL;"
 
 log "🎉 Deploy completato"
