@@ -125,7 +125,7 @@ In ambienti on-prem con filesystem montati (CIFS, bind mount, NFS, ecc.), lo scr
 - Assicurarsi che la directory `resources/views/components` sia presente in ogni installazione.
 
 ## Queue di Laravel (obbligatoria in produzione)
-PraticaVoice utilizza la queue per operazioni asincrone (es. generazione fascicoli ZIP, indicizzazione PDF). In produzione non va usata la modalità `sync`: senza worker attivo i job restano `pending` e le operazioni non vengono completate.
+PraticaVoice utilizza la queue come componente strutturale per le operazioni asincrone (es. generazione fascicoli ZIP, indicizzazione PDF). In produzione **non è ammesso** `QUEUE_CONNECTION=sync`: senza worker attivo i job restano `pending` e le operazioni appaiono “bloccate” (es. fascicolo ZIP fermo allo 0%). In sviluppo si può usare `sync` solo per test locali, ma in produzione è obbligatoria la queue con worker dedicato.
 
 ### Configurazione applicativa
 Nel file `.env`:
@@ -182,3 +182,15 @@ Nota (consigliato): riavvio dopo un deploy:
 ```bash
 systemctl restart praticavoice-queue
 ```
+
+## 🖥️ Pagina "InfoSistema" (diagnostica applicativa)
+L’applicazione include una pagina “InfoSistema”, riservata agli amministratori, pensata come strumento di diagnosi rapida. Consente di visualizzare:
+- versione installata e modalità di esecuzione (cloud / on-prem)
+- tenant/Comune attivo
+- stato della queue (configurata/non configurata), job pendenti e job falliti
+- informazioni di base sull’ambiente (PHP, Laravel, hostname, PDF_BASE_PATH se on-prem)
+
+La pagina non esegue comandi di sistema, non richiede privilegi root e si limita a letture di configurazione/DB.
+
+### Nota operativa on-prem
+In ambienti on-prem i servizi di sistema (es. queue worker) sono gestiti esternamente all’applicazione tramite systemd/supervisor: l’app rileva lo stato solo in modo indiretto (es. job processati), mentre l’avvio e il mantenimento dei servizi sono responsabilità dell’amministratore di sistema.

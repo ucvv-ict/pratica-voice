@@ -57,6 +57,54 @@ chown -R "${APP_USER}:${APP_GROUP}" storage bootstrap/cache
 find storage bootstrap/cache -type d -exec chmod 775 {} \;
 find storage bootstrap/cache -type f -exec chmod 664 {} \;
 
+
+log "🧵 Configurazione Queue (systemd)"
+
+QUEUE_SERVICE="/etc/systemd/system/praticavoice-queue.service"
+RUNTIME_DIR="/var/run/praticavoice"
+QUEUE_LOG="/var/log/praticavoice-queue.log"
+
+log "📁 Creo directory runtime ${RUNTIME_DIR}"
+mkdir -p "${RUNTIME_DIR}"
+chown "${APP_USER}:${APP_GROUP}" "${RUNTIME_DIR}"
+chmod 755 "${RUNTIME_DIR}"
+
+if [[ ! -f "${QUEUE_SERVICE}" ]]; then
+    log "🧩 Creo servizio systemd praticavoice-queue"
+
+    cat > "${QUEUE_SERVICE}" <<EOF
+[Unit]
+Description=PraticaVoice Queue Worker
+After=network.target mysql.service
+
+[Service]
+User=${APP_USER}
+Group=${APP_GROUP}
+Restart=always
+RestartSec=5
+
+ExecStart=/usr/bin/php ${PROJECT_ROOT}/artisan queue:work database --sleep=3 --tries=3 --timeout=120
+
+# Heartbeat per InfoSistema
+ExecStartPost=/bin/bash -c 'while true; do date +%s > ${RUNTIME_DIR}/queue.last_seen; sleep 30; done'
+
+StandardOutput=append:${QUEUE_LOG}
+StandardError=append:${QUEUE_LOG}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    log "🔄 Ricarico systemd"
+    systemctl daemon-reload
+
+    log "🚀 Abilito e avvio praticavoice-queue"
+    systemctl enable praticavoice-queue
+    systemctl start praticavoice-queue
+else
+    log "ℹ️  Servizio praticavoice-queue già presente (skip)"
+fi
+
 log "✅ Prima installazione completata"
 echo
 echo "Prossimi passi:"
