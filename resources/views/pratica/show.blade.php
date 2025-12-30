@@ -20,9 +20,15 @@
         </div>
     @endif
 
-    @if(session('success'))
+@if(session('success'))
         <div class="alert alert-success mb-3">
             ✅ {{ session('success') }}
+        </div>
+    @endif
+
+    @if(session('info'))
+        <div class="alert alert-info mb-3">
+            ℹ️ {{ session('info') }}
         </div>
     @endif
 
@@ -70,7 +76,10 @@
                     @endif
                 </div>
                 <div class="flex items-center gap-2">
-                    @if($fascicoloZip && $fascicoloZip->stato === 'completed')
+                    @php
+                        $zipExists = $fascicoloZip->file_zip && file_exists($fascicoloZip->file_zip);
+                    @endphp
+                    @if($fascicoloZip && $fascicoloZip->stato === 'completed' && $zipExists)
                         <a href="{{ route('fascicoli.download', $fascicoloZip->id) }}"
                            class="px-3 py-1 bg-green-600 text-white rounded shadow hover:bg-green-700">
                             ⬇ Scarica ZIP
@@ -91,8 +100,8 @@
             </div>
 
             <a id="zip-download"
-               href="{{ $zipReady ? route('fascicoli.download', $fascicoloZip->id) : '#' }}"
-               class="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded {{ $zipReady ? '' : 'hidden' }}"
+               href="{{ ($zipReady && $fascicoloZip->file_zip && file_exists($fascicoloZip->file_zip)) ? route('fascicoli.download', $fascicoloZip->id) : '#' }}"
+               class="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded {{ ($zipReady && $fascicoloZip->file_zip && file_exists($fascicoloZip->file_zip)) ? '' : 'hidden' }}"
                target="_blank">
                 Scarica fascicolo ZIP
             </a>

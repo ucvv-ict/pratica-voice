@@ -21,14 +21,15 @@ class FascicoliCleanup extends Command
      *
      * @var string
      */
-    protected $description = 'Elimina zip temporanei dei fascicoli più vecchi di 24 ore e azzera il percorso in DB';
+    protected $description = 'Elimina zip temporanei dei fascicoli più vecchi di N giorni e azzera il percorso in DB';
 
     /**
      * Execute the console command.
      */
     public function handle(): int
     {
-        $threshold = Carbon::now()->subDay();
+        $days = (int) config('pratica.fascicolo_expiry_days', 3);
+        $threshold = Carbon::now()->subDays($days);
         $deleted = 0;
         $cleared = 0;
 

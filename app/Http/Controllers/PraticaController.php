@@ -83,6 +83,17 @@ class PraticaController extends Controller
 
         $fascicoloZip = $fascicoloInCorso ?? $fascicoloCompletato;
 
+        // Se il fascicolo è "completed" ma il file è mancante/scaduto, reset e rimettiamo in coda
+        if ($fascicoloZip && $fascicoloZip->stato === 'completed' && $fascicoloZip->file_zip && !File::exists($fascicoloZip->file_zip)) {
+            $fascicoloZip->update([
+                'stato' => 'pending',
+                'progress' => 0,
+                'file_zip' => null,
+            ]);
+            GeneraFascicoloJob::dispatch($fascicoloZip->id);
+            session()->flash('info', 'Il fascicolo è stato rigenerato perché il file ZIP non è più disponibile.');
+        }
+
         $resolved = $resolver->resolve($pratica);
         $ultimaVersioneMetadata = $pratica->ultimoMetadata ? $pratica->ultimoMetadata->versione : 0;
 

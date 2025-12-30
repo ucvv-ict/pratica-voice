@@ -162,5 +162,75 @@
             </table>
         @endif
     </div>
+
+    <div class="bg-white shadow rounded p-4 border border-gray-200">
+        <h2 class="text-lg font-semibold mb-3">Pratiche recenti</h2>
+        @if($recentPratiche->isEmpty())
+            <p class="text-sm text-gray-600">Nessuna pratica.</p>
+        @else
+            <table class="w-full text-sm">
+                <thead class="text-left text-gray-500">
+                    <tr>
+                        <th class="py-2">ID</th>
+                        <th class="py-2">N. Pratica</th>
+                        <th class="py-2">Oggetto</th>
+                        <th class="py-2">Data</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @foreach($recentPratiche as $p)
+                        <tr>
+                            <td class="py-2 text-gray-800">
+                                <a href="{{ route('pratica.show', $p->id) }}" class="text-blue-600 hover:underline">{{ $p->id }}</a>
+                            </td>
+                            <td class="py-2 text-gray-800">{{ $p->numero_pratica }}</td>
+                            <td class="py-2 text-gray-800">{{ Str::limit($p->oggetto, 60) }}</td>
+                            <td class="py-2 text-gray-800">{{ optional($p->created_at)->format('d/m/Y') }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+
+    <div class="bg-white shadow rounded p-4 border border-gray-200">
+        <h2 class="text-lg font-semibold mb-3">Fascicoli recenti</h2>
+        @if($recentFascicoli->isEmpty())
+            <p class="text-sm text-gray-600">Nessun fascicolo.</p>
+        @else
+            <table class="w-full text-sm">
+                <thead class="text-left text-gray-500">
+                    <tr>
+                        <th class="py-2">ID</th>
+                        <th class="py-2">Pratica</th>
+                        <th class="py-2">Versione</th>
+                        <th class="py-2">Stato</th>
+                        <th class="py-2">Data</th>
+                        <th class="py-2">Download</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @foreach($recentFascicoli as $f)
+                        <tr>
+                            <td class="py-2 text-gray-800">{{ $f->id }}</td>
+                            <td class="py-2 text-gray-800">
+                                <a href="{{ route('pratica.show', $f->pratica_id) }}" class="text-blue-600 hover:underline">Pratica {{ $f->pratica_id }}</a>
+                            </td>
+                            <td class="py-2 text-gray-800">{{ $f->versione }}</td>
+                            <td class="py-2 text-gray-800">{{ $f->stato }}</td>
+                            <td class="py-2 text-gray-800">{{ optional($f->created_at)->format('d/m/Y H:i') }}</td>
+                            <td class="py-2 text-gray-800">
+                                @if($f->file_zip)
+                                    <a href="{{ route('fascicoli.download', $f->id) }}" class="text-blue-600 hover:underline">Scarica</a>
+                                @else
+                                    <span class="text-gray-500">n/d</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
 </div>
 @endsection

@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use App\Support\Tenant;
+use App\Models\Pratica;
+use App\Models\FascicoloGenerazione;
 
 class InfoSistemaController extends Controller
 {
@@ -79,6 +81,22 @@ class InfoSistemaController extends Controller
                 ->get();
         }
 
+        $recentPratiche = collect();
+        if (Schema::hasTable('pratiche')) {
+            $recentPratiche = Pratica::select('id', 'numero_pratica', 'oggetto', 'created_at')
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get();
+        }
+
+        $recentFascicoli = collect();
+        if (Schema::hasTable('fascicoli_generazione')) {
+            $recentFascicoli = FascicoloGenerazione::select('id', 'pratica_id', 'versione', 'stato', 'file_zip', 'created_at')
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get();
+        }
+
         return view('info-sistema', [
             'appInfo' => $appInfo,
             'systemInfo' => $systemInfo,
@@ -89,6 +107,8 @@ class InfoSistemaController extends Controller
             'queueNote' => $queueNote,
             'heartbeatMinutes' => $heartbeatMinutes,
             'deployHistory' => $deployHistory,
+            'recentPratiche' => $recentPratiche,
+            'recentFascicoli' => $recentFascicoli,
         ]);
     }
 }
