@@ -297,8 +297,11 @@
                     {{ $p->id }}
                 </td>
 
-                <td class="py-2.5 px-4 text-gray-900 font-semibold">
-                    {{ $p->numero_pratica }}
+                <td class="py-2.5 px-4 font-semibold">
+                    <span class="text-blue-700 dark:text-blue-300">{{ $p->numero_pratica }}</span>
+                    @if(isset($p->resolved_metadata['numero_pratica']) && $p->resolved_metadata['numero_pratica'] !== $p->numero_pratica)
+                        <span class="text-red-500 dark:text-red-400 text-xs font-normal">({{ $p->resolved_metadata['numero_pratica'] }})</span>
+                    @endif
                 </td>
 
                 <td class="py-2.5 px-4 text-gray-700">

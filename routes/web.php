@@ -42,6 +42,9 @@ Route::get('/pratica/{id}', [PraticaController::class, 'show'])
 Route::post('/pratica/{id}/zip', [PraticaController::class, 'downloadZip'])
     ->name('pratica.zip');
 
+Route::post('/pratica/{id}/metadata', [PraticaController::class, 'storeMetadata'])
+    ->name('pratica.metadata.store');
+
 Route::get('/pratica/{praticaId}/fascicoli/{fascicoloId}/status',
     [PraticaController::class, 'fascicoloStatus']
 )->name('pratica.fascicolo.status');

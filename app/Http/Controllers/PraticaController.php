@@ -6,10 +6,12 @@ use App\Models\Pratica;
 use App\Models\AccessoAtti;
 use App\Models\FascicoloGenerazione;
 use App\Models\FascicoloGenerazione as FascicoloZip;
+use App\Models\MetadataAggiornato;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use App\Jobs\GeneraFascicoloJob;
 use App\Support\Tenant;
+use App\Services\MetadataResolver;
 
 class PraticaController extends Controller
 {
@@ -42,10 +44,10 @@ class PraticaController extends Controller
     }
 
 
-    public function show($id)
+    public function show($id, MetadataResolver $resolver)
     {
         // 📌 Carica pratica
-        $pratica = Pratica::findOrFail($id);
+        $pratica = Pratica::with('ultimoMetadata')->findOrFail($id);
 
         // 📁 Percorso cartella PDF della pratica
         $folder = Tenant::praticaPdfFolder($pratica->cartella);
@@ -81,9 +83,14 @@ class PraticaController extends Controller
 
         $fascicoloZip = $fascicoloInCorso ?? $fascicoloCompletato;
 
+        $resolved = $resolver->resolve($pratica);
+        $ultimaVersioneMetadata = $pratica->ultimoMetadata ? $pratica->ultimoMetadata->versione : 0;
+
         // 🔥 Passiamo tutto alla view
         return view('pratica.show', [
             'pratica'  => $pratica,
+            'resolved' => $resolved,
+            'ultimaVersioneMetadata' => $ultimaVersioneMetadata,
             'pdfFiles' => $pdfFiles,
             'accessi'  => $accessi,
             'fascicoli' => $fascicoli,
@@ -146,5 +153,53 @@ class PraticaController extends Controller
         }, $filename, [
             'Content-Type' => 'application/zip',
         ]);
+    }
+
+    public function storeMetadata(Request $request, $id)
+    {
+        $pratica = Pratica::with('metadataAggiornati')->findOrFail($id);
+
+        $validated = $request->validate([
+            'oggetto' => 'nullable|string',
+            'numero_protocollo' => 'nullable|string',
+            'data_protocollo' => 'nullable|string',
+            'anno_presentazione' => 'nullable|string',
+            'numero_pratica' => 'nullable|string',
+            'rich_cognome1' => 'nullable|string',
+            'rich_nome1' => 'nullable|string',
+            'rich_cognome2' => 'nullable|string',
+            'rich_nome2' => 'nullable|string',
+            'rich_cognome3' => 'nullable|string',
+            'rich_nome3' => 'nullable|string',
+            'area_circolazione' => 'nullable|string',
+            'civico_esponente' => 'nullable|string',
+            'foglio' => 'nullable|string',
+            'particella_sub' => 'nullable|string',
+            'nota' => 'nullable|string',
+            'riferimento_libero' => 'nullable|string',
+        ]);
+
+        // Rimuove chiavi vuote per evitare sovrascritture inutili
+        $payload = [];
+        foreach ($validated as $key => $value) {
+            if ($request->has($key)) {
+                $payload[$key] = $value;
+            }
+        }
+
+        if (empty($payload)) {
+            return back()->with('error', 'Nessun metadato fornito.');
+        }
+
+        $nextVersion = ($pratica->metadataAggiornati()->max('versione') ?? 0) + 1;
+
+        MetadataAggiornato::create([
+            'pratica_id' => $pratica->id,
+            'user_id' => null,
+            'versione' => $nextVersion,
+            'dati' => $payload,
+        ]);
+
+        return back()->with('success', 'Metadati aggiornati (versione ' . $nextVersion . ').');
     }
 }

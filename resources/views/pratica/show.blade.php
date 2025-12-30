@@ -6,11 +6,11 @@
 
     {{-- TITOLO --}}
     <h1 class="text-2xl font-bold mb-2">
-        📁 Pratica {{ $pratica->numero_pratica }}
+        📁 Pratica {{ $resolved['numero_pratica'] ?? $pratica->numero_pratica }}
     </h1>
 
     <h4 class="text-gray-600 mb-4">
-        {{ $pratica->oggetto }}
+        {{ $resolved['oggetto'] ?? $pratica->oggetto }}
     </h4>
 
     {{-- MESSAGGI FLASH --}}
@@ -245,25 +245,25 @@
 
         <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <p><b>Tipo pratica:</b> {{ $pratica->sigla_tipo_pratica }}</p>
-                <p><b>Anno presentazione:</b> {{ $pratica->anno_presentazione }}</p>
-                <p><b>Riferimento libero:</b> {{ $pratica->riferimento_libero }}</p>
-            </div>
+        <p><b>Tipo pratica:</b> {{ $resolved['sigla_tipo_pratica'] ?? $pratica->sigla_tipo_pratica }}</p>
+        <p><b>Anno presentazione:</b> {{ $resolved['anno_presentazione'] ?? $pratica->anno_presentazione }}</p>
+        <p><b>Riferimento libero:</b> {{ $resolved['riferimento_libero'] ?? $pratica->riferimento_libero }}</p>
+    </div>
 
-            <div>
-                <p><b>Data protocollo:</b> {{ $pratica->data_protocollo }}</p>
-                <p><b>Numero protocollo:</b> {{ $pratica->numero_protocollo }}</p>
-                <p><b>Pratica ID interno:</b> {{ $pratica->pratica_id }}</p>
-            </div>
-        </div>
+    <div>
+        <p><b>Data protocollo:</b> {{ $resolved['data_protocollo'] ?? $pratica->data_protocollo }}</p>
+        <p><b>Numero protocollo:</b> {{ $resolved['numero_protocollo'] ?? $pratica->numero_protocollo }}</p>
+        <p><b>Pratica ID interno:</b> {{ $resolved['pratica_id'] ?? $pratica->pratica_id }}</p>
+    </div>
+</div>
     </details>
 
     {{-- RILASCIO --}}
     <details class="mb-4">
         <summary class="font-semibold">📑 Rilascio</summary>
         <div class="mt-2">
-            <p><b>Data rilascio:</b> {{ $pratica->data_rilascio }}</p>
-            <p><b>Numero rilascio:</b> {{ $pratica->numero_rilascio }}</p>
+        <p><b>Data rilascio:</b> {{ $resolved['data_rilascio'] ?? $pratica->data_rilascio }}</p>
+        <p><b>Numero rilascio:</b> {{ $resolved['numero_rilascio'] ?? $pratica->numero_rilascio }}</p>
         </div>
     </details>
 
@@ -271,8 +271,8 @@
     <details class="mb-4">
         <summary class="font-semibold">📬 Localizzazione</summary>
         <div class="mt-2">
-            <p><b>Via:</b> {{ $pratica->area_circolazione }}</p>
-            <p><b>Civico:</b> {{ $pratica->civico_esponente }}</p>
+        <p><b>Via:</b> {{ $resolved['area_circolazione'] ?? $pratica->area_circolazione }}</p>
+        <p><b>Civico:</b> {{ $resolved['civico_esponente'] ?? $pratica->civico_esponente }}</p>
         </div>
     </details>
 
@@ -282,21 +282,98 @@
 
         <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-                <p><b>Foglio:</b> {{ $pratica->foglio }}</p>
-                <p><b>Particella / Sub:</b> {{ $pratica->particella_sub }}</p>
+                <p><b>Foglio:</b> {{ $resolved['foglio'] ?? $pratica->foglio }}</p>
+                <p><b>Particella / Sub:</b> {{ $resolved['particella_sub'] ?? $pratica->particella_sub }}</p>
             </div>
 
             <div>
-                <p><b>Sezione:</b> {{ $pratica->sezione }}</p>
-                <p><b>Tipo catasto:</b> {{ $pratica->tipo_catasto }}</p>
+                <p><b>Sezione:</b> {{ $resolved['sezione'] ?? $pratica->sezione }}</p>
+                <p><b>Tipo catasto:</b> {{ $resolved['tipo_catasto'] ?? $pratica->tipo_catasto }}</p>
             </div>
 
             <div>
-                <p><b>Codice catasto:</b> {{ $pratica->codice_catasto }}</p>
-                <p><b>Nota:</b> {{ $pratica->nota }}</p>
+                <p><b>Codice catasto:</b> {{ $resolved['codice_catasto'] ?? $pratica->codice_catasto }}</p>
+                <p><b>Nota:</b> {{ $resolved['nota'] ?? $pratica->nota }}</p>
             </div>
         </div>
     </details>
+
+    <div class="mb-6 bg-gray-50 border border-gray-200 rounded p-4">
+        <h2 class="text-lg font-semibold mb-2">✏️ Correzione metadati (versione {{ $ultimaVersioneMetadata }})</h2>
+        <form method="POST" action="{{ route('pratica.metadata.store', $pratica->id) }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @csrf
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Oggetto</label>
+                <textarea name="oggetto" class="w-full border rounded p-2" rows="2">{{ old('oggetto', $resolved['oggetto'] ?? '') }}</textarea>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Numero protocollo</label>
+                <input type="text" name="numero_protocollo" value="{{ old('numero_protocollo', $resolved['numero_protocollo'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Data protocollo</label>
+                <input type="text" name="data_protocollo" value="{{ old('data_protocollo', $resolved['data_protocollo'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Anno presentazione</label>
+                <input type="text" name="anno_presentazione" value="{{ old('anno_presentazione', $resolved['anno_presentazione'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Numero pratica</label>
+                <input type="text" name="numero_pratica" value="{{ old('numero_pratica', $resolved['numero_pratica'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Riferimento libero</label>
+                <input type="text" name="riferimento_libero" value="{{ old('riferimento_libero', $resolved['riferimento_libero'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Via</label>
+                <input type="text" name="area_circolazione" value="{{ old('area_circolazione', $resolved['area_circolazione'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Civico</label>
+                <input type="text" name="civico_esponente" value="{{ old('civico_esponente', $resolved['civico_esponente'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Foglio</label>
+                <input type="text" name="foglio" value="{{ old('foglio', $resolved['foglio'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Particella / Sub</label>
+                <input type="text" name="particella_sub" value="{{ old('particella_sub', $resolved['particella_sub'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Nota</label>
+                <textarea name="nota" class="w-full border rounded p-2" rows="2">{{ old('nota', $resolved['nota'] ?? '') }}</textarea>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Richiedente 1 (Cognome Nome)</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" name="rich_cognome1" value="{{ old('rich_cognome1', $resolved['rich_cognome1'] ?? '') }}" class="w-full border rounded p-2" placeholder="Cognome">
+                    <input type="text" name="rich_nome1" value="{{ old('rich_nome1', $resolved['rich_nome1'] ?? '') }}" class="w-full border rounded p-2" placeholder="Nome">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Richiedente 2 (Cognome Nome)</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" name="rich_cognome2" value="{{ old('rich_cognome2', $resolved['rich_cognome2'] ?? '') }}" class="w-full border rounded p-2" placeholder="Cognome">
+                    <input type="text" name="rich_nome2" value="{{ old('rich_nome2', $resolved['rich_nome2'] ?? '') }}" class="w-full border rounded p-2" placeholder="Nome">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Richiedente 3 (Cognome Nome)</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" name="rich_cognome3" value="{{ old('rich_cognome3', $resolved['rich_cognome3'] ?? '') }}" class="w-full border rounded p-2" placeholder="Cognome">
+                    <input type="text" name="rich_nome3" value="{{ old('rich_nome3', $resolved['rich_nome3'] ?? '') }}" class="w-full border rounded p-2" placeholder="Nome">
+                </div>
+            </div>
+            <div class="md:col-span-2 flex justify-end">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700">
+                    Salva metadati
+                </button>
+            </div>
+        </form>
+    </div>
 
     <hr class="my-6">
 

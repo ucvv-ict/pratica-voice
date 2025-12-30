@@ -55,7 +55,13 @@ class DashboardController extends Controller
                   ->orWhere('rich_cognome1', 'like', "%{$term}%")
                   ->orWhere('rich_nome1', 'like', "%{$term}%")
                   ->orWhere('rich_cognome2', 'like', "%{$term}%")
-                  ->orWhere('rich_nome2', 'like', "%{$term}%");
+                  ->orWhere('rich_nome2', 'like', "%{$term}%")
+                  ->orWhereExists(function($q) use ($term) {
+                      $q->select(DB::raw(1))
+                        ->from('metadati_aggiornati as ma')
+                        ->whereColumn('ma.pratica_id', 'pratiche.id')
+                        ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(ma.dati, '$.\"numero_pratica\"')) LIKE ?", ["%{$term}%"]);
+                  });
             });
         }
 
@@ -73,7 +79,16 @@ class DashboardController extends Controller
 
         foreach ($exactFilters as $input => $column) {
             if (filled($filters[$input] ?? null)) {
-                $query->where($column, $filters[$input]);
+                $value = $filters[$input];
+                $query->where(function($q) use ($column, $value) {
+                    $q->where($column, $value)
+                      ->orWhereExists(function($sub) use ($column, $value) {
+                          $sub->select(DB::raw(1))
+                              ->from('metadati_aggiornati as ma')
+                              ->whereColumn('ma.pratica_id', 'pratiche.id')
+                              ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(ma.dati, '$.\"{$column}\"')) = ?", [$value]);
+                      });
+                });
             }
         }
 
@@ -89,7 +104,16 @@ class DashboardController extends Controller
 
         foreach ($likeFilters as $input => $column) {
             if (filled($filters[$input] ?? null)) {
-                $query->where($column, 'like', '%' . $filters[$input] . '%');
+                $value = '%' . $filters[$input] . '%';
+                $query->where(function($q) use ($column, $value) {
+                    $q->where($column, 'like', $value)
+                      ->orWhereExists(function($sub) use ($column, $value) {
+                          $sub->select(DB::raw(1))
+                              ->from('metadati_aggiornati as ma')
+                              ->whereColumn('ma.pratica_id', 'pratiche.id')
+                              ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(ma.dati, '$.\"{$column}\"')) LIKE ?", [$value]);
+                      });
+                });
             }
         }
 
@@ -151,9 +175,9 @@ class DashboardController extends Controller
 
 
         /* -------------------------------------------------
-         * 📥 Otteniamo tutte le pratiche filtrate dal DB
+         * 📥 Otteniamo tutte le pratiche filtrate dal DB (con ultimo metadata)
          * ------------------------------------------------- */
-        $results = $query->get();
+        $results = $query->with('ultimoMetadata')->get();
 
 
         /* -------------------------------------------------
@@ -173,6 +197,9 @@ class DashboardController extends Controller
         $results->transform(function ($p) {
             // numero_pdf è il campo persistito nel DB
             $p->files_count = $p->numero_pdf ?? 0;
+            if ($p->ultimoMetadata && is_array($p->ultimoMetadata->dati)) {
+                $p->resolved_metadata = $p->ultimoMetadata->dati;
+            }
             return $p;
         });
 

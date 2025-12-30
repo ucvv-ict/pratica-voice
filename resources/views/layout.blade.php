@@ -365,6 +365,7 @@
         <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-800">
             {{ \App\Support\Tenant::name() }}
         </span>
+        <a href="{{ route('info-sistema') }}" class="text-blue-600 hover:underline">Info sistema</a>
     </div>
 </footer>
     <script>
