@@ -164,37 +164,13 @@
     </div>
 
     <div class="bg-white shadow rounded p-4 border border-gray-200">
-        <h2 class="text-lg font-semibold mb-3">Pratiche recenti</h2>
-        @if($recentPratiche->isEmpty())
-            <p class="text-sm text-gray-600">Nessuna pratica.</p>
-        @else
-            <table class="w-full text-sm">
-                <thead class="text-left text-gray-500">
-                    <tr>
-                        <th class="py-2">ID</th>
-                        <th class="py-2">N. Pratica</th>
-                        <th class="py-2">Oggetto</th>
-                        <th class="py-2">Data</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    @foreach($recentPratiche as $p)
-                        <tr>
-                            <td class="py-2 text-gray-800">
-                                <a href="{{ route('pratica.show', $p->id) }}" class="text-blue-600 hover:underline">{{ $p->id }}</a>
-                            </td>
-                            <td class="py-2 text-gray-800">{{ $p->numero_pratica }}</td>
-                            <td class="py-2 text-gray-800">{{ Str::limit($p->oggetto, 60) }}</td>
-                            <td class="py-2 text-gray-800">{{ optional($p->created_at)->format('d/m/Y') }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        @endif
-    </div>
-
-    <div class="bg-white shadow rounded p-4 border border-gray-200">
-        <h2 class="text-lg font-semibold mb-3">Fascicoli recenti</h2>
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">Fascicoli recenti</h2>
+            <form method="GET" class="flex items-center gap-2">
+                <input type="text" name="fascicoli_search" value="{{ request('fascicoli_search') }}" placeholder="Cerca pratica / stato" class="border rounded px-2 py-1 text-sm">
+                <button class="text-sm px-3 py-1 bg-gray-100 rounded border border-gray-200">Cerca</button>
+            </form>
+        </div>
         @if($recentFascicoli->isEmpty())
             <p class="text-sm text-gray-600">Nessun fascicolo.</p>
         @else
@@ -230,6 +206,9 @@
                     @endforeach
                 </tbody>
             </table>
+            <div class="mt-3">
+                {{ $recentFascicoli->appends(['pratiche_search' => request('pratiche_search')])->links() }}
+            </div>
         @endif
     </div>
 </div>

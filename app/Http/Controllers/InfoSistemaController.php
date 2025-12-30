@@ -81,20 +81,18 @@ class InfoSistemaController extends Controller
                 ->get();
         }
 
-        $recentPratiche = collect();
-        if (Schema::hasTable('pratiche')) {
-            $recentPratiche = Pratica::select('id', 'numero_pratica', 'oggetto', 'created_at')
-                ->orderByDesc('created_at')
-                ->limit(20)
-                ->get();
-        }
-
         $recentFascicoli = collect();
         if (Schema::hasTable('fascicoli_generazione')) {
-            $recentFascicoli = FascicoloGenerazione::select('id', 'pratica_id', 'versione', 'stato', 'file_zip', 'created_at')
+            $fascicoliQuery = FascicoloGenerazione::select('id', 'pratica_id', 'versione', 'stato', 'file_zip', 'created_at');
+            if ($term = $request->input('fascicoli_search')) {
+                $fascicoliQuery->where(function($q) use ($term) {
+                    $q->where('pratica_id', 'like', "%{$term}%")
+                      ->orWhere('stato', 'like', "%{$term}%");
+                });
+            }
+            $recentFascicoli = $fascicoliQuery
                 ->orderByDesc('created_at')
-                ->limit(20)
-                ->get();
+                ->paginate(25, ['*'], 'fascicoli_page');
         }
 
         return view('info-sistema', [
@@ -107,7 +105,6 @@ class InfoSistemaController extends Controller
             'queueNote' => $queueNote,
             'heartbeatMinutes' => $heartbeatMinutes,
             'deployHistory' => $deployHistory,
-            'recentPratiche' => $recentPratiche,
             'recentFascicoli' => $recentFascicoli,
         ]);
     }
