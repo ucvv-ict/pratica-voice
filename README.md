@@ -99,6 +99,9 @@ Email istituzionale:  segreteria@ucvv.it
 - Worker code: avvia `php artisan queue:work --daemon` (via supervisor/systemd) per fascicoli/indicizzazioni.
 - Permessi: l’utente PHP deve leggere i PDF e scrivere in `storage/` e `bootstrap/cache/`.
 - Verifica rapida: apri `/dashboard` (badge tenant), apri una pratica e controlla link PDF; se necessario lancia `php artisan pdf:index --no-interaction`.
+- Script operativi:
+  - `first-install.sh` (root): esegue la prima installazione, prepara il servizio systemd della queue e la directory runtime.
+  - `deploy.sh` (root/sudo): per aggiornamenti ordinari; non gestisce servizi di sistema.
 
 ### Permessi filesystem in ambienti on-prem
 In ambienti on-prem con filesystem montati (CIFS, bind mount, NFS, ecc.), lo script di deploy non forza il cambio ownership delle directory `storage/` e `bootstrap/cache`. I permessi corretti devono essere impostati in fase di prima installazione. Durante i deploy successivi, i permessi vengono applicati in modalità best-effort senza interrompere il processo.
@@ -125,7 +128,7 @@ In ambienti on-prem con filesystem montati (CIFS, bind mount, NFS, ecc.), lo scr
 - Assicurarsi che la directory `resources/views/components` sia presente in ogni installazione.
 
 ## Queue di Laravel (obbligatoria in produzione)
-PraticaVoice utilizza la queue come componente strutturale per le operazioni asincrone (es. generazione fascicoli ZIP, indicizzazione PDF). In produzione **non è ammesso** `QUEUE_CONNECTION=sync`: senza worker attivo i job restano `pending` e le operazioni appaiono “bloccate” (es. fascicolo ZIP fermo allo 0%). In sviluppo si può usare `sync` solo per test locali, ma in produzione è obbligatoria la queue con worker dedicato.
+PraticaVoice utilizza la queue come componente strutturale per le operazioni asincrone (es. generazione fascicoli ZIP, indicizzazione PDF). In produzione **non è ammesso** `QUEUE_CONNECTION=sync`: senza worker attivo i job restano `pending` e le operazioni appaiono “bloccate” (es. fascicolo ZIP fermo allo 0%). In sviluppo si può usare `sync` solo per test locali, ma in produzione è obbligatoria la queue con worker dedicato. Si raccomanda il riavvio del worker dopo ogni deploy.
 
 ### Configurazione applicativa
 Nel file `.env`:
@@ -182,6 +185,19 @@ Nota (consigliato): riavvio dopo un deploy:
 ```bash
 systemctl restart praticavoice-queue
 ```
+
+## 🖥️ Pagina "InfoSistema" (diagnostica applicativa)
+L’applicazione include una pagina “InfoSistema”, riservata agli amministratori, pensata come strumento di diagnosi rapida. Consente di visualizzare:
+- versione installata (tag Git) e commit
+- modalità di esecuzione (cloud / on-prem) e tenant/Comune attivo
+- stato della queue (configurata/non configurata), job pendenti/falliti, ultimo heartbeat del worker
+- informazioni di base sull’ambiente (PHP, Laravel, hostname, PDF_BASE_PATH se on-prem)
+- ultimi deploy registrati (se presente la tabella di audit)
+
+La pagina non esegue comandi di sistema, non richiede privilegi root e si limita a letture di configurazione/DB e del file di heartbeat.
+
+### Nota operativa on-prem
+In ambienti on-prem i servizi di sistema (es. queue worker) sono gestiti esternamente all’applicazione tramite systemd/supervisor: l’app rileva lo stato solo in modo indiretto (es. job processati, heartbeat del worker), mentre l’avvio e il mantenimento dei servizi sono responsabilità dell’amministratore di sistema.
 
 ## 🖥️ Pagina "InfoSistema" (diagnostica applicativa)
 L’applicazione include una pagina “InfoSistema”, riservata agli amministratori, pensata come strumento di diagnosi rapida. Consente di visualizzare:

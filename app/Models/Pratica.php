@@ -37,6 +37,16 @@ class Pratica extends Model
         'numero_pdf',
     ];
 
+    public function metadataAggiornati()
+    {
+        return $this->hasMany(\App\Models\MetadataAggiornato::class);
+    }
+
+    public function ultimoMetadata()
+    {
+        return $this->hasOne(\App\Models\MetadataAggiornato::class)->orderByDesc('versione');
+    }
+
     public function getRichiedentiCompletiAttribute()
     {
         $lista = [];
@@ -55,4 +65,3 @@ class Pratica extends Model
     }
 
 }
-

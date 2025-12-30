@@ -49,8 +49,36 @@ fi
 log "📦 Composer install (dev)"
 sudo -u "${APP_USER}" -g "${APP_GROUP}" composer install
 
-log "🗃️  Migrazioni"
+log "🗄️  Migrazioni (incluso queue se già definita)"
 sudo -u "${APP_USER}" -g "${APP_GROUP}" php artisan migrate
+
+log "📂 Creo directory runtime /var/run/praticavoice"
+install -d -o "${APP_USER}" -g "${APP_GROUP}" /var/run/praticavoice
+
+log "⚙️  Installo servizio systemd praticavoice-queue"
+chmod +x "${PROJECT_ROOT}/scripts/queue-worker.sh"
+cat >/etc/systemd/system/praticavoice-queue.service <<'EOF'
+[Unit]
+Description=PraticaVoice Queue Worker
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/env bash -lc '/var/www/praticavoice/scripts/queue-worker.sh'
+StandardOutput=append:/var/log/praticavoice-queue.log
+StandardError=append:/var/log/praticavoice-queue.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+log "🔄 Ricarico systemd e avvio worker"
+systemctl daemon-reload
+systemctl enable praticavoice-queue
+systemctl start praticavoice-queue
 
 log "🔒 Permessi storage e cache"
 chown -R "${APP_USER}:${APP_GROUP}" storage bootstrap/cache

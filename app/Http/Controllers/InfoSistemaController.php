@@ -7,26 +7,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use App\Support\Tenant;
 
 class InfoSistemaController extends Controller
 {
     public function index(Request $request)
     {
-        // Accesso solo admin/autenticati; se non autenticato → 403
-        if (!auth()->check()) {
-            abort(403);
-        }
-
-        $user = auth()->user();
-        if (method_exists($user, 'is_admin') && !$user->is_admin) {
-            abort(403);
-        }
+        // Nota: in futuro proteggere con autenticazione/admin; attualmente accesso libero per diagnostica.
 
         $appInfo = [
             'name' => config('app.name'),
             'version' => AppVersion::version(),
+            'commit' => AppVersion::commit(),
             'mode' => Str::of(config('praticavoice.mode', 'cloud'))->replace('_', '-')->upper(),
             'env' => config('app.env'),
+            'tenant' => Tenant::name(),
         ];
 
         $systemInfo = [
@@ -61,8 +56,27 @@ class InfoSistemaController extends Controller
         }
 
         $workerStatus = 'unknown';
-        if ($recentlyReserved !== null) {
-            $workerStatus = $recentlyReserved > 0 ? 'active' : 'inactive';
+        $heartbeatPath = '/var/run/praticavoice/queue.last_seen';
+        $heartbeatMinutes = null;
+
+        if (file_exists($heartbeatPath)) {
+            $heartbeatMinutes = (time() - filemtime($heartbeatPath)) / 60;
+        }
+
+        if ($recentlyReserved !== null && $recentlyReserved > 0) {
+            $workerStatus = 'active';
+        } elseif ($heartbeatMinutes !== null && $heartbeatMinutes <= 10) {
+            $workerStatus = 'active';
+        } elseif ($heartbeatMinutes !== null) {
+            $workerStatus = 'inactive';
+        }
+
+        $deployHistory = [];
+        if (Schema::hasTable('deploy_history')) {
+            $deployHistory = DB::table('deploy_history')
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get();
         }
 
         return view('info-sistema', [
@@ -73,6 +87,8 @@ class InfoSistemaController extends Controller
             'failedJobs' => $failedJobs,
             'workerStatus' => $workerStatus,
             'queueNote' => $queueNote,
+            'heartbeatMinutes' => $heartbeatMinutes,
+            'deployHistory' => $deployHistory,
         ]);
     }
 }

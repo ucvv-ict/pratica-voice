@@ -20,4 +20,9 @@ class AppVersion
     {
         return str_starts_with($tag, 'v') ? $tag : 'v' . $tag;
     }
+
+    public static function commit(): string
+    {
+        return trim((string) shell_exec('git rev-parse --short HEAD'));
+    }
 }

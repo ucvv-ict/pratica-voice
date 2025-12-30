@@ -21,6 +21,10 @@
                         <td class="py-2 font-semibold text-gray-800">{{ $appInfo['version'] }}</td>
                     </tr>
                     <tr>
+                        <td class="py-2 text-gray-600">Commit</td>
+                        <td class="py-2 font-semibold text-gray-800">{{ $appInfo['commit'] }}</td>
+                    </tr>
+                    <tr>
                         <td class="py-2 text-gray-600">Modalità</td>
                         <td class="py-2">
                             <span class="px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200">
@@ -31,6 +35,10 @@
                     <tr>
                         <td class="py-2 text-gray-600">Ambiente</td>
                         <td class="py-2 font-semibold text-gray-800">{{ $appInfo['env'] }}</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2 text-gray-600">Tenant</td>
+                        <td class="py-2 font-semibold text-gray-800">{{ $appInfo['tenant'] }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -68,7 +76,7 @@
             <h2 class="text-lg font-semibold">Queue</h2>
             @php
                 $statusColor = $workerStatus === 'active' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-yellow-100 text-yellow-800 border-yellow-200';
-                $statusLabel = $workerStatus === 'active' ? 'Attivo (recenti elaborazioni)' : 'Non rilevato / inattivo';
+                $statusLabel = $workerStatus === 'active' ? 'Attivo (recenti elaborazioni/heartbeat)' : 'Non rilevato / inattivo';
             @endphp
             <span class="px-2 py-1 rounded text-xs font-semibold border {{ $statusColor }}">{{ $statusLabel }}</span>
         </div>
@@ -78,6 +86,16 @@
                 <tr>
                     <td class="py-2 text-gray-600">Connessione</td>
                     <td class="py-2 font-semibold text-gray-800">{{ $queueConnection }}</td>
+                </tr>
+                <tr>
+                    <td class="py-2 text-gray-600">Heartbeat worker</td>
+                    <td class="py-2 font-semibold text-gray-800">
+                        @if($heartbeatMinutes === null)
+                            <span class="text-gray-500">n/d</span>
+                        @else
+                            {{ number_format($heartbeatMinutes, 1) }} min fa
+                        @endif
+                    </td>
                 </tr>
                 <tr>
                     <td class="py-2 text-gray-600">Job in coda</td>
@@ -113,6 +131,36 @@
         <p class="text-sm text-gray-600 mt-3">
             Se il worker non è attivo, i job restano in coda e le operazioni asincrone (es. fascicoli ZIP, indicizzazione PDF) non vengono completate.
         </p>
+    </div>
+
+    <div class="bg-white shadow rounded p-4 border border-gray-200">
+        <h2 class="text-lg font-semibold mb-3">Ultimi deploy</h2>
+        @if(empty($deployHistory))
+            <p class="text-sm text-gray-600">Nessun dato disponibile.</p>
+        @else
+            <table class="w-full text-sm">
+                <thead class="text-left text-gray-500">
+                    <tr>
+                        <th class="py-2">Data</th>
+                        <th class="py-2">Versione</th>
+                        <th class="py-2">Commit</th>
+                        <th class="py-2">Modalità</th>
+                        <th class="py-2">Note</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @foreach($deployHistory as $deploy)
+                        <tr>
+                            <td class="py-2 text-gray-800">{{ \Carbon\Carbon::parse($deploy->created_at)->format('d/m/Y H:i') }}</td>
+                            <td class="py-2 text-gray-800">{{ $deploy->version }}</td>
+                            <td class="py-2 text-gray-800">{{ $deploy->commit }}</td>
+                            <td class="py-2 text-gray-800">{{ $deploy->mode }}</td>
+                            <td class="py-2 text-gray-800">{{ $deploy->notes }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
     </div>
 </div>
 @endsection
