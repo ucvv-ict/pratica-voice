@@ -77,6 +77,9 @@ log "⚡ Rigenero cache"
 sudo -u "${APP_USER}" -g "${APP_GROUP}" php artisan config:cache
 sudo -u "${APP_USER}" -g "${APP_GROUP}" php artisan route:cache
 
+log "📝 Registro deploy (best-effort)"
+sudo -u "${APP_USER}" -g "${APP_GROUP}" php artisan deploy:record --notes="deploy.sh" || log "⚠️  deploy:record non eseguito (comando mancante o tabella assente)"
+
 log "🔒 Permessi storage e cache (best-effort)"
 
 for DIR in storage bootstrap/cache; do
