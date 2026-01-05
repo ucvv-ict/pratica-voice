@@ -236,14 +236,36 @@
     <details open class="mb-4">
         <summary class="font-semibold">🧑‍💼 Richiedenti</summary>
         <div class="mt-2">
-            <p><b>1)</b> {{ $pratica->rich_cognome1 }} {{ $pratica->rich_nome1 }}</p>
+            @php
+                $rich = function($i) use ($resolved, $pratica, $metadataDiff) {
+                    $cognome = $resolved['rich_cognome' . $i] ?? $pratica->{'rich_cognome' . $i};
+                    $nome    = $resolved['rich_nome' . $i] ?? $pratica->{'rich_nome' . $i};
+                    $updated = trim(($cognome ?? '') . ' ' . ($nome ?? ''));
 
-            @if($pratica->rich_cognome2 || $pratica->rich_nome2)
-                <p><b>2)</b> {{ $pratica->rich_cognome2 }} {{ $pratica->rich_nome2 }}</p>
+                    $origCognome = $metadataDiff['rich_cognome' . $i]['original'] ?? $pratica->{'rich_cognome' . $i};
+                    $origNome    = $metadataDiff['rich_nome' . $i]['original'] ?? $pratica->{'rich_nome' . $i};
+                    $original    = trim(($origCognome ?? '') . ' ' . ($origNome ?? ''));
+
+                    $changed = ($metadataDiff['rich_cognome' . $i]['updated'] ?? null) !== null
+                            || ($metadataDiff['rich_nome' . $i]['updated'] ?? null) !== null;
+
+                    return [$updated, $original, $changed];
+                };
+            @endphp
+
+            @php [$u1, $o1, $c1] = $rich(1); @endphp
+            @if($u1)
+                <p><b>1)</b> {{ $u1 }} @if($c1)<span class="text-xs text-red-600 ml-2">(orig: {{ $o1 }})</span>@endif</p>
             @endif
 
-            @if($pratica->rich_cognome3 || $pratica->rich_nome3)
-                <p><b>3)</b> {{ $pratica->rich_cognome3 }} {{ $pratica->rich_nome3 }}</p>
+            @php [$u2, $o2, $c2] = $rich(2); @endphp
+            @if($u2)
+                <p><b>2)</b> {{ $u2 }} @if($c2)<span class="text-xs text-red-600 ml-2">(orig: {{ $o2 }})</span>@endif</p>
+            @endif
+
+            @php [$u3, $o3, $c3] = $rich(3); @endphp
+            @if($u3)
+                <p><b>3)</b> {{ $u3 }} @if($c3)<span class="text-xs text-red-600 ml-2">(orig: {{ $o3 }})</span>@endif</p>
             @endif
         </div>
     </details>
@@ -254,15 +276,15 @@
 
         <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-        <p><b>Tipo pratica:</b> {{ $resolved['sigla_tipo_pratica'] ?? $pratica->sigla_tipo_pratica }}</p>
-        <p><b>Anno presentazione:</b> {{ $resolved['anno_presentazione'] ?? $pratica->anno_presentazione }}</p>
-        <p><b>Riferimento libero:</b> {{ $resolved['riferimento_libero'] ?? $pratica->riferimento_libero }}</p>
+        <p><b>Tipo pratica:</b> {{ $resolved['sigla_tipo_pratica'] ?? $pratica->sigla_tipo_pratica }} @if(isset($metadataDiff['sigla_tipo_pratica']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['sigla_tipo_pratica']['original'] }})</span>@endif</p>
+        <p><b>Anno presentazione:</b> {{ $resolved['anno_presentazione'] ?? $pratica->anno_presentazione }} @if(isset($metadataDiff['anno_presentazione']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['anno_presentazione']['original'] }})</span>@endif</p>
+        <p><b>Riferimento libero:</b> {{ $resolved['riferimento_libero'] ?? $pratica->riferimento_libero }} @if(isset($metadataDiff['riferimento_libero']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['riferimento_libero']['original'] }})</span>@endif</p>
     </div>
 
     <div>
-        <p><b>Data protocollo:</b> {{ $resolved['data_protocollo'] ?? $pratica->data_protocollo }}</p>
-        <p><b>Numero protocollo:</b> {{ $resolved['numero_protocollo'] ?? $pratica->numero_protocollo }}</p>
-        <p><b>Pratica ID interno:</b> {{ $resolved['pratica_id'] ?? $pratica->pratica_id }}</p>
+        <p><b>Data protocollo:</b> {{ $resolved['data_protocollo'] ?? $pratica->data_protocollo }} @if(isset($metadataDiff['data_protocollo']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['data_protocollo']['original'] }})</span>@endif</p>
+        <p><b>Numero protocollo:</b> {{ $resolved['numero_protocollo'] ?? $pratica->numero_protocollo }} @if(isset($metadataDiff['numero_protocollo']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['numero_protocollo']['original'] }})</span>@endif</p>
+        <p><b>Pratica ID interno:</b> {{ $resolved['pratica_id'] ?? $pratica->pratica_id }} @if(isset($metadataDiff['pratica_id']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['pratica_id']['original'] }})</span>@endif</p>
     </div>
 </div>
     </details>
@@ -271,8 +293,8 @@
     <details class="mb-4">
         <summary class="font-semibold">📑 Rilascio</summary>
         <div class="mt-2">
-        <p><b>Data rilascio:</b> {{ $resolved['data_rilascio'] ?? $pratica->data_rilascio }}</p>
-        <p><b>Numero rilascio:</b> {{ $resolved['numero_rilascio'] ?? $pratica->numero_rilascio }}</p>
+        <p><b>Data rilascio:</b> {{ $resolved['data_rilascio'] ?? $pratica->data_rilascio }} @if(isset($metadataDiff['data_rilascio']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['data_rilascio']['original'] }})</span>@endif</p>
+        <p><b>Numero rilascio:</b> {{ $resolved['numero_rilascio'] ?? $pratica->numero_rilascio }} @if(isset($metadataDiff['numero_rilascio']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['numero_rilascio']['original'] }})</span>@endif</p>
         </div>
     </details>
 
@@ -280,8 +302,8 @@
     <details class="mb-4">
         <summary class="font-semibold">📬 Localizzazione</summary>
         <div class="mt-2">
-        <p><b>Via:</b> {{ $resolved['area_circolazione'] ?? $pratica->area_circolazione }}</p>
-        <p><b>Civico:</b> {{ $resolved['civico_esponente'] ?? $pratica->civico_esponente }}</p>
+        <p><b>Via:</b> {{ $resolved['area_circolazione'] ?? $pratica->area_circolazione }} @if(isset($metadataDiff['area_circolazione']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['area_circolazione']['original'] }})</span>@endif</p>
+        <p><b>Civico:</b> {{ $resolved['civico_esponente'] ?? $pratica->civico_esponente }} @if(isset($metadataDiff['civico_esponente']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['civico_esponente']['original'] }})</span>@endif</p>
         </div>
     </details>
 
@@ -291,18 +313,18 @@
 
         <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-                <p><b>Foglio:</b> {{ $resolved['foglio'] ?? $pratica->foglio }}</p>
-                <p><b>Particella / Sub:</b> {{ $resolved['particella_sub'] ?? $pratica->particella_sub }}</p>
+                <p><b>Foglio:</b> {{ $resolved['foglio'] ?? $pratica->foglio }} @if(isset($metadataDiff['foglio']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['foglio']['original'] }})</span>@endif</p>
+                <p><b>Particella / Sub:</b> {{ $resolved['particella_sub'] ?? $pratica->particella_sub }} @if(isset($metadataDiff['particella_sub']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['particella_sub']['original'] }})</span>@endif</p>
             </div>
 
             <div>
-                <p><b>Sezione:</b> {{ $resolved['sezione'] ?? $pratica->sezione }}</p>
-                <p><b>Tipo catasto:</b> {{ $resolved['tipo_catasto'] ?? $pratica->tipo_catasto }}</p>
+                <p><b>Sezione:</b> {{ $resolved['sezione'] ?? $pratica->sezione }} @if(isset($metadataDiff['sezione']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['sezione']['original'] }})</span>@endif</p>
+                <p><b>Tipo catasto:</b> {{ $resolved['tipo_catasto'] ?? $pratica->tipo_catasto }} @if(isset($metadataDiff['tipo_catasto']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['tipo_catasto']['original'] }})</span>@endif</p>
             </div>
 
             <div>
-                <p><b>Codice catasto:</b> {{ $resolved['codice_catasto'] ?? $pratica->codice_catasto }}</p>
-                <p><b>Nota:</b> {{ $resolved['nota'] ?? $pratica->nota }}</p>
+                <p><b>Codice catasto:</b> {{ $resolved['codice_catasto'] ?? $pratica->codice_catasto }} @if(isset($metadataDiff['codice_catasto']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['codice_catasto']['original'] }})</span>@endif</p>
+                <p><b>Nota:</b> {{ $resolved['nota'] ?? $pratica->nota }} @if(isset($metadataDiff['nota']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['nota']['original'] }})</span>@endif</p>
             </div>
         </div>
     </details>

@@ -95,12 +95,14 @@ class PraticaController extends Controller
         }
 
         $resolved = $resolver->resolve($pratica);
+        $metadataDiff = $resolver->diff($pratica);
         $ultimaVersioneMetadata = $pratica->ultimoMetadata ? $pratica->ultimoMetadata->versione : 0;
 
         // 🔥 Passiamo tutto alla view
         return view('pratica.show', [
             'pratica'  => $pratica,
             'resolved' => $resolved,
+            'metadataDiff' => $metadataDiff,
             'ultimaVersioneMetadata' => $ultimaVersioneMetadata,
             'pdfFiles' => $pdfFiles,
             'accessi'  => $accessi,

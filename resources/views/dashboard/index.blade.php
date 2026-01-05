@@ -176,6 +176,11 @@
                     <input type="checkbox" name="vuote" value="1" @checked(request('vuote') == '1') class="h-4 w-4 {{ request('vuote') == '1' ? 'ring-2 ring-yellow-300 border-yellow-400' : '' }}">
                     <span>Solo pratiche senza file</span>
                 </label>
+
+                <label class="flex items-center gap-2 text-sm mt-2 md:mt-0">
+                    <input type="checkbox" name="exact" value="1" @checked(request('exact') == '1') class="h-4 w-4 {{ request('exact') == '1' ? 'ring-2 ring-yellow-300 border-yellow-400' : '' }}">
+                    <span>Filtri esatti</span>
+                </label>
             </div>
         </div>
 
@@ -298,28 +303,60 @@
                 </td>
 
                 <td class="py-2.5 px-4 font-semibold">
-                    <span class="text-blue-700 dark:text-blue-300">{{ $p->numero_pratica }}</span>
-                    @if(isset($p->resolved_metadata['numero_pratica']) && $p->resolved_metadata['numero_pratica'] !== $p->numero_pratica)
-                        <span class="text-red-500 dark:text-red-400 text-xs font-normal">({{ $p->resolved_metadata['numero_pratica'] }})</span>
+                    @php
+                        $numeroPraticaOriginal = $p->original_values['numero_pratica'] ?? $p->numero_pratica;
+                        $numeroPraticaResolved = $p->resolved['numero_pratica'] ?? $numeroPraticaOriginal;
+                    @endphp
+                    <span class="text-blue-700 dark:text-blue-300">{{ $numeroPraticaOriginal }}</span>
+                    @if($numeroPraticaResolved !== $numeroPraticaOriginal)
+                        <span class="text-red-500 dark:text-red-400 text-xs font-normal">({{ $numeroPraticaResolved }})</span>
                     @endif
                 </td>
 
                 <td class="py-2.5 px-4 text-gray-700">
-                    {{ $p->anno_presentazione }}
+                    @php
+                        $annoOriginal = $p->original_values['anno_presentazione'] ?? $p->anno_presentazione;
+                        $annoResolved = $p->resolved['anno_presentazione'] ?? $annoOriginal;
+                    @endphp
+                    {{ $annoOriginal }}
+                    @if($annoResolved !== $annoOriginal)
+                        <span class="text-red-500 dark:text-red-400 text-xs font-normal">({{ $annoResolved }})</span>
+                    @endif
                 </td>
 
                 <td class="py-2.5 px-4 text-gray-700">
-                    {{ $p->richiedenti_completi }}
+                    @php
+                        $richOriginal = $p->richiedenti_completi;
+                        $richResolved = $p->richiedenti_resolti;
+                    @endphp
+                    {{ $richOriginal ?: '—' }}
+                    @if($richResolved && $richResolved !== $richOriginal)
+                        <span class="text-red-500 dark:text-red-400 text-xs font-normal">({{ $richResolved }})</span>
+                    @endif
                 </td>
 
                 <td class="py-2.5 px-4 text-gray-600 text-[13px]">
-                    <div class="line-clamp-2 overflow-hidden text-ellipsis" title="{{ $p->oggetto }}">
-                        {{ $p->oggetto }}
+                    @php
+                        $oggettoOriginal = $p->original_values['oggetto'] ?? $p->oggetto;
+                        $oggettoResolved = $p->resolved['oggetto'] ?? $oggettoOriginal;
+                    @endphp
+                    <div class="line-clamp-2 overflow-hidden text-ellipsis" title="{{ $oggettoResolved }}">
+                        {{ $oggettoOriginal }}
+                        @if($oggettoResolved !== $oggettoOriginal)
+                            <span class="text-red-500 dark:text-red-400 text-xs font-normal">({{ $oggettoResolved }})</span>
+                        @endif
                     </div>
                 </td>
 
                 <td class="py-2.5 px-4 text-gray-700">
-                    {{ $p->area_circolazione }} {{ $p->civico_esponente }}
+                    @php
+                        $viaOriginal = trim(($p->original_values['area_circolazione'] ?? $p->area_circolazione) . ' ' . ($p->original_values['civico_esponente'] ?? $p->civico_esponente));
+                        $viaResolved = trim(($p->resolved['area_circolazione'] ?? $p->area_circolazione) . ' ' . ($p->resolved['civico_esponente'] ?? $p->civico_esponente));
+                    @endphp
+                    {{ $viaOriginal }}
+                    @if($viaResolved !== $viaOriginal)
+                        <span class="text-red-500 dark:text-red-400 text-xs font-normal">({{ $viaResolved }})</span>
+                    @endif
                 </td>
 
                 <td class="py-2.5 px-4 text-center">

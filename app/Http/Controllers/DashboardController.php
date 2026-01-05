@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Pratica;
 use Illuminate\Support\Facades\DB;
+use App\Services\MetadataResolver;
 
 class DashboardController extends Controller
 {
     public function index(Request $request)
     {
         $query = Pratica::query();
+        $resolver = app(MetadataResolver::class);
 
         // Raccogliamo tutti i filtri gestiti (alias compresi)
         $filters = $request->only([
@@ -38,15 +40,32 @@ class DashboardController extends Controller
             'numero_rilascio',
             'pdf',
             'vuote',
+            'exact',
         ]);
 
         // Compatibilità con vecchi parametri
         $filters['richiedente'] = $filters['richiedente'] ?? $request->input('cognome');
         $filters['anno'] = $filters['anno'] ?? $request->input('anno_presentazione');
+        $exactMode = $request->boolean('exact');
 
         // Ricerca globale
         if (filled($filters['q'] ?? null)) {
             $term = $filters['q'];
+            $metadataFields = [
+                'numero_protocollo',
+                'numero_pratica',
+                'oggetto',
+                'rich_cognome1', 'rich_nome1',
+                'rich_cognome2', 'rich_nome2',
+                'rich_cognome3', 'rich_nome3',
+                'area_circolazione',
+                'civico_esponente',
+                'riferimento_libero',
+                'anno_presentazione',
+                'nota',
+                'particella_sub',
+                'foglio',
+            ];
 
             $query->where(function ($s) use ($term) {
                 $s->where('numero_protocollo', 'like', "%{$term}%")
@@ -56,11 +75,15 @@ class DashboardController extends Controller
                   ->orWhere('rich_nome1', 'like', "%{$term}%")
                   ->orWhere('rich_cognome2', 'like', "%{$term}%")
                   ->orWhere('rich_nome2', 'like', "%{$term}%")
-                  ->orWhereExists(function($q) use ($term) {
+                  ->orWhereExists(function($q) use ($term, $metadataFields) {
                       $q->select(DB::raw(1))
                         ->from('metadati_aggiornati as ma')
                         ->whereColumn('ma.pratica_id', 'pratiche.id')
-                        ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(ma.dati, '$.\"numero_pratica\"')) LIKE ?", ["%{$term}%"]);
+                        ->where(function($inner) use ($metadataFields, $term) {
+                            foreach ($metadataFields as $field) {
+                                $inner->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(ma.dati, '$.\"{$field}\"')) LIKE ?", ["%{$term}%"]);
+                            }
+                        });
                   });
             });
         }
@@ -80,14 +103,28 @@ class DashboardController extends Controller
         foreach ($exactFilters as $input => $column) {
             if (filled($filters[$input] ?? null)) {
                 $value = $filters[$input];
-                $query->where(function($q) use ($column, $value) {
-                    $q->where($column, $value)
-                      ->orWhereExists(function($sub) use ($column, $value) {
-                          $sub->select(DB::raw(1))
-                              ->from('metadati_aggiornati as ma')
-                              ->whereColumn('ma.pratica_id', 'pratiche.id')
-                              ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(ma.dati, '$.\"{$column}\"')) = ?", [$value]);
-                      });
+                $alwaysExact = in_array($column, ['id', 'pratica_id'], true);
+                $useLike = !$exactMode && !$alwaysExact;
+
+                $query->where(function($q) use ($column, $value, $useLike) {
+                    if ($useLike) {
+                        $likeValue = '%' . $value . '%';
+                        $q->where($column, 'like', $likeValue)
+                          ->orWhereExists(function($sub) use ($column, $likeValue) {
+                              $sub->select(DB::raw(1))
+                                  ->from('metadati_aggiornati as ma')
+                                  ->whereColumn('ma.pratica_id', 'pratiche.id')
+                                  ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(ma.dati, '$.\"{$column}\"')) LIKE ?", [$likeValue]);
+                          });
+                    } else {
+                        $q->where($column, $value)
+                          ->orWhereExists(function($sub) use ($column, $value) {
+                              $sub->select(DB::raw(1))
+                                  ->from('metadati_aggiornati as ma')
+                                  ->whereColumn('ma.pratica_id', 'pratiche.id')
+                                  ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(ma.dati, '$.\"{$column}\"')) = ?", [$value]);
+                          });
+                    }
                 });
             }
         }
@@ -120,14 +157,23 @@ class DashboardController extends Controller
         // Richiedente: cerca su tutti i campi nome/cognome
         if (filled($filters['richiedente'] ?? null)) {
             $name = $filters['richiedente'];
-
             $query->where(function ($q) use ($name) {
                 $q->where('rich_cognome1', 'LIKE', "%{$name}%")
                   ->orWhere('rich_nome1', 'LIKE', "%{$name}%")
                   ->orWhere('rich_cognome2', 'LIKE', "%{$name}%")
                   ->orWhere('rich_nome2', 'LIKE', "%{$name}%")
                   ->orWhere('rich_cognome3', 'LIKE', "%{$name}%")
-                  ->orWhere('rich_nome3', 'LIKE', "%{$name}%");
+                  ->orWhere('rich_nome3', 'LIKE', "%{$name}%")
+                  ->orWhereExists(function($sub) use ($name) {
+                      $sub->select(DB::raw(1))
+                          ->from('metadati_aggiornati as ma')
+                          ->whereColumn('ma.pratica_id', 'pratiche.id')
+                          ->where(function($inner) use ($name) {
+                              foreach (['rich_cognome1', 'rich_nome1', 'rich_cognome2', 'rich_nome2', 'rich_cognome3', 'rich_nome3'] as $field) {
+                                  $inner->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(ma.dati, '$.\"{$field}\"')) LIKE ?", ["%{$name}%"]);
+                              }
+                          });
+                  });
             });
         }
 
@@ -194,12 +240,26 @@ class DashboardController extends Controller
             });
         }
 
-        $results->transform(function ($p) {
-            // numero_pdf è il campo persistito nel DB
+        $results->transform(function ($p) use ($resolver) {
             $p->files_count = $p->numero_pdf ?? 0;
-            if ($p->ultimoMetadata && is_array($p->ultimoMetadata->dati)) {
-                $p->resolved_metadata = $p->ultimoMetadata->dati;
+            $p->original_values = $p->getAttributes();
+
+            $p->resolved_metadata = $p->ultimoMetadata && is_array($p->ultimoMetadata->dati)
+                ? $p->ultimoMetadata->dati
+                : [];
+
+            $p->resolved = $resolver->resolve($p);
+            $p->metadata_diff = $resolver->diff($p);
+            $resolvedRichiedenti = [];
+            for ($i = 1; $i <= 3; $i++) {
+                $cognome = $p->resolved['rich_cognome' . $i] ?? ($p->{'rich_cognome' . $i} ?? null);
+                $nome    = $p->resolved['rich_nome' . $i] ?? ($p->{'rich_nome' . $i} ?? null);
+                if ($cognome || $nome) {
+                    $resolvedRichiedenti[] = trim(($cognome ?? '') . ' ' . ($nome ?? ''));
+                }
             }
+            $p->richiedenti_resolti = implode(', ', $resolvedRichiedenti);
+
             return $p;
         });
 
@@ -210,7 +270,9 @@ class DashboardController extends Controller
         $sort = $request->input('sort', 'id');
         $dir  = $request->input('dir', 'desc');
 
-        $results = $results->sortBy($sort, SORT_REGULAR, $dir === 'desc');
+        $results = $results->sortBy(function($p) use ($sort) {
+            return $p->resolved[$sort] ?? $p->{$sort} ?? null;
+        }, SORT_REGULAR, $dir === 'desc');
 
 
         /* -------------------------------------------------
