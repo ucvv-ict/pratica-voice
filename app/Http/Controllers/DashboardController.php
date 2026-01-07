@@ -67,7 +67,7 @@ class DashboardController extends Controller
                 'foglio',
             ];
 
-            $query->where(function ($s) use ($term) {
+            $query->where(function ($s) use ($term, $metadataFields) {
                 $s->where('numero_protocollo', 'like', "%{$term}%")
                   ->orWhere('numero_pratica', 'like', "%{$term}%")
                   ->orWhere('oggetto', 'like', "%{$term}%")
@@ -75,6 +75,8 @@ class DashboardController extends Controller
                   ->orWhere('rich_nome1', 'like', "%{$term}%")
                   ->orWhere('rich_cognome2', 'like', "%{$term}%")
                   ->orWhere('rich_nome2', 'like', "%{$term}%")
+                  ->orWhere('rich_cognome3', 'like', "%{$term}%")
+                  ->orWhere('rich_nome3', 'like', "%{$term}%")
                   ->orWhereExists(function($q) use ($term, $metadataFields) {
                       $q->select(DB::raw(1))
                         ->from('metadati_aggiornati as ma')
