@@ -36,6 +36,7 @@ class DashboardController extends Controller
             'rilascio_a',
             'created_da',
             'created_a',
+            'cartella',
             'pratica_id',
             'numero_rilascio',
             'pdf',
@@ -46,6 +47,7 @@ class DashboardController extends Controller
         // Compatibilità con vecchi parametri
         $filters['richiedente'] = $filters['richiedente'] ?? $request->input('cognome');
         $filters['anno'] = $filters['anno'] ?? $request->input('anno_presentazione');
+        $filters['cartella'] = $filters['cartella'] ?? $filters['pratica_id'] ?? null;
         $exactMode = $request->boolean('exact');
 
         // Ricerca globale
@@ -54,7 +56,9 @@ class DashboardController extends Controller
             $metadataFields = [
                 'numero_protocollo',
                 'numero_pratica',
+                'numero_rilascio',
                 'oggetto',
+                'pratica_id',
                 'rich_cognome1', 'rich_nome1',
                 'rich_cognome2', 'rich_nome2',
                 'rich_cognome3', 'rich_nome3',
@@ -70,6 +74,8 @@ class DashboardController extends Controller
             $query->where(function ($s) use ($term, $metadataFields) {
                 $s->where('numero_protocollo', 'like', "%{$term}%")
                   ->orWhere('numero_pratica', 'like', "%{$term}%")
+                  ->orWhere('numero_rilascio', 'like', "%{$term}%")
+                  ->orWhere('pratica_id', 'like', "%{$term}%")
                   ->orWhere('oggetto', 'like', "%{$term}%")
                   ->orWhere('rich_cognome1', 'like', "%{$term}%")
                   ->orWhere('rich_nome1', 'like', "%{$term}%")
@@ -98,7 +104,7 @@ class DashboardController extends Controller
             'anno' => 'anno_presentazione',
             'tipo' => 'sigla_tipo_pratica',
             'foglio' => 'foglio',
-            'pratica_id' => 'pratica_id',
+            'cartella' => 'pratica_id',
             'numero_rilascio' => 'numero_rilascio',
         ];
 
@@ -269,7 +275,7 @@ class DashboardController extends Controller
         /* -------------------------------------------------
          * ↕ Ordinamento lato PHP
          * ------------------------------------------------- */
-        $sort = $request->input('sort', 'id');
+        $sort = $request->input('sort', 'pratica_id');
         $dir  = $request->input('dir', 'desc');
 
         $results = $results->sortBy(function($p) use ($sort) {

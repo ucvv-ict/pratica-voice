@@ -176,6 +176,8 @@ class PraticaController extends Controller
             'oggetto' => 'nullable|string',
             'numero_protocollo' => 'nullable|string',
             'data_protocollo' => 'nullable|string',
+            'numero_rilascio' => 'nullable|string',
+            'data_rilascio' => 'nullable|string',
             'anno_presentazione' => 'nullable|string',
             'numero_pratica' => 'nullable|string',
             'rich_cognome1' => 'nullable|string',

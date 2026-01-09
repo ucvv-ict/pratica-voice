@@ -42,13 +42,13 @@
                 <div>
                     <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Ricerca globale</label>
                     <input type="text" name="q" value="{{ request('q') }}"
-                        class="p-2 border rounded w-full {{ filterActive('q') }}" placeholder="Protocollo, oggetto o richiedente">
+                        class="p-2 border rounded w-full {{ filterActive('q') }}" placeholder="Protocollo, cartella, rilascio, oggetto o richiedente">
                 </div>
 
                 <div>
-                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">ID</label>
-                    <input type="number" name="id" value="{{ request('id') }}"
-                        class="p-2 border rounded w-full {{ filterActive('id') }}" min="1">
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Cartella</label>
+                    <input type="text" name="cartella" value="{{ request('cartella') ?? request('pratica_id') }}"
+                        class="p-2 border rounded w-full {{ filterActive('cartella') ?: filterActive('pratica_id') }}">
                 </div>
 
                 <div>
@@ -61,6 +61,12 @@
                     <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Numero pratica</label>
                     <input type="text" name="numero_pratica" value="{{ request('numero_pratica') }}"
                         class="p-2 border rounded w-full {{ filterActive('numero_pratica') }}">
+                </div>
+
+                <div>
+                    <label class="block text-xs mb-1 uppercase tracking-wide text-gray-600">Numero rilascio</label>
+                    <input type="text" name="numero_rilascio" value="{{ request('numero_rilascio') }}"
+                        class="p-2 border rounded w-full {{ filterActive('numero_rilascio') }}">
                 </div>
 
                 <div>
@@ -233,11 +239,11 @@
         <thead class="sticky top-0 bg-gray-100 z-20 shadow">
             <tr class="text-gray-700 text-xs uppercase tracking-wide">
 
-                {{-- ID --}}
-                @php $s = sortLink('ID', 'id'); @endphp
-                <th class="py-3 px-4 text-left w-16">
+                {{-- Cartella --}}
+                @php $s = sortLink('Cartella', 'pratica_id'); @endphp
+                <th class="py-3 px-4 text-left w-28">
                     <a href="{{ $s['url'] }}" class="flex items-center gap-1 hover:text-blue-700">
-                        ID {!! $s['icon'] !!}
+                        Cartella {!! $s['icon'] !!}
                     </a>
                 </th>
 
@@ -299,7 +305,14 @@
             <tr class="border-b last:border-0 odd:bg-gray-50 hover:bg-blue-50 transition">
 
                 <td class="py-2.5 px-4 text-gray-700 font-medium">
-                    {{ $p->id }}
+                    @php
+                        $cartellaOriginal = $p->original_values['pratica_id'] ?? $p->pratica_id;
+                        $cartellaResolved = $p->resolved['pratica_id'] ?? $cartellaOriginal;
+                    @endphp
+                    {{ $cartellaOriginal ?: '—' }}
+                    @if($cartellaResolved !== $cartellaOriginal)
+                        <span class="text-red-500 dark:text-red-400 text-xs font-normal">({{ $cartellaResolved }})</span>
+                    @endif
                 </td>
 
                 <td class="py-2.5 px-4 font-semibold">

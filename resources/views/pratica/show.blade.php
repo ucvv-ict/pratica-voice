@@ -284,7 +284,7 @@
     <div>
         <p><b>Data protocollo:</b> {{ $resolved['data_protocollo'] ?? $pratica->data_protocollo }} @if(isset($metadataDiff['data_protocollo']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['data_protocollo']['original'] }})</span>@endif</p>
         <p><b>Numero protocollo:</b> {{ $resolved['numero_protocollo'] ?? $pratica->numero_protocollo }} @if(isset($metadataDiff['numero_protocollo']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['numero_protocollo']['original'] }})</span>@endif</p>
-        <p><b>Pratica ID interno:</b> {{ $resolved['pratica_id'] ?? $pratica->pratica_id }} @if(isset($metadataDiff['pratica_id']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['pratica_id']['original'] }})</span>@endif</p>
+        <p><b>Cartella:</b> {{ $resolved['cartella'] ?? $pratica->cartella ?? $resolved['pratica_id'] ?? $pratica->pratica_id }} @if(isset($metadataDiff['cartella']) || isset($metadataDiff['pratica_id']))<span class="text-xs text-red-600 ml-2">(orig: {{ $metadataDiff['cartella']['original'] ?? $metadataDiff['pratica_id']['original'] }})</span>@endif</p>
     </div>
 </div>
     </details>
@@ -338,12 +338,24 @@
                 <textarea name="oggetto" class="w-full border rounded p-2" rows="2">{{ old('oggetto', $resolved['oggetto'] ?? '') }}</textarea>
             </div>
             <div>
+                <label class="block text-xs text-gray-600 mb-1">Nota</label>
+                <textarea name="nota" class="w-full border rounded p-2" rows="2">{{ old('nota', $resolved['nota'] ?? '') }}</textarea>
+            </div>
+            <div>
                 <label class="block text-xs text-gray-600 mb-1">Numero protocollo</label>
                 <input type="text" name="numero_protocollo" value="{{ old('numero_protocollo', $resolved['numero_protocollo'] ?? '') }}" class="w-full border rounded p-2">
             </div>
             <div>
                 <label class="block text-xs text-gray-600 mb-1">Data protocollo</label>
                 <input type="text" name="data_protocollo" value="{{ old('data_protocollo', $resolved['data_protocollo'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Numero rilascio</label>
+                <input type="text" name="numero_rilascio" value="{{ old('numero_rilascio', $resolved['numero_rilascio'] ?? '') }}" class="w-full border rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Data rilascio</label>
+                <input type="text" name="data_rilascio" value="{{ old('data_rilascio', $resolved['data_rilascio'] ?? '') }}" class="w-full border rounded p-2">
             </div>
             <div>
                 <label class="block text-xs text-gray-600 mb-1">Anno presentazione</label>
@@ -372,10 +384,6 @@
             <div>
                 <label class="block text-xs text-gray-600 mb-1">Particella / Sub</label>
                 <input type="text" name="particella_sub" value="{{ old('particella_sub', $resolved['particella_sub'] ?? '') }}" class="w-full border rounded p-2">
-            </div>
-            <div>
-                <label class="block text-xs text-gray-600 mb-1">Nota</label>
-                <textarea name="nota" class="w-full border rounded p-2" rows="2">{{ old('nota', $resolved['nota'] ?? '') }}</textarea>
             </div>
             <div>
                 <label class="block text-xs text-gray-600 mb-1">Richiedente 1 (Cognome Nome)</label>
