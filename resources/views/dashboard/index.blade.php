@@ -3,7 +3,7 @@
 @section('content')
 <div class="p-6 max-w-7xl mx-auto">
 @php
-    $filtersOpen = $activeFilters > 0;
+    $filtersOpen = $activeFilters > 0 && !request()->boolean('hide_filters');
     function filterActive(string $name): string {
         return request()->filled($name) ? 'border-yellow-400 ring-1 ring-yellow-300' : '';
     }
@@ -286,7 +286,18 @@
 
                     {{-- Gruppo BAT --}}
                     <td class="py-2.5 px-4 font-mono text-xs">
-                        {{ $p->gruppo_bat ?? '—' }}
+                        @if($p->gruppo_bat)
+                    <a href="{{ route('dashboard', [
+                        'gruppo_pratica' => $p->gruppo_bat,
+                        'hide_filters' => 1,
+                    ]) }}"
+                    class="text-blue-600 hover:text-blue-800 underline"
+                    title="Mostra tutte le pratiche del gruppo {{ $p->gruppo_bat }}">
+                        {{ $p->gruppo_bat }}
+                    </a>
+                        @else
+                            —
+                        @endif
                     </td>
 
                     {{-- Stato file --}}
