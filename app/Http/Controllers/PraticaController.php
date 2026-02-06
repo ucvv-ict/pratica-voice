@@ -15,7 +15,6 @@ use App\Services\MetadataResolver;
 
 class PraticaController extends Controller
 {
-
     public function downloadZip(Request $request, $id)
     {
         $pratica = Pratica::findOrFail($id);
@@ -24,18 +23,19 @@ class PraticaController extends Controller
             return back()->with('error', 'Nessun file selezionato.');
         }
 
-        $selected = $request->input('files', []);  // array nomi file
+        $selected = $request->input('files', []);
         if (empty($selected)) {
             return back()->with('error', 'Nessun file selezionato.');
         }
+
         $versione = (FascicoloGenerazione::where('pratica_id', $pratica->id)->max('versione') ?? 0) + 1;
 
         $fascicolo = FascicoloGenerazione::create([
-            'pratica_id' => $pratica->id,
-            'versione'   => $versione,
-            'stato'      => 'pending',
-            'progress'   => 0,
-            'files_selezionati' => $selected,
+            'pratica_id'       => $pratica->id,
+            'versione'         => $versione,
+            'stato'            => 'pending',
+            'progress'         => 0,
+            'files_selezionati'=> $selected,
         ]);
 
         GeneraFascicoloJob::dispatch($fascicolo->id);
@@ -43,32 +43,32 @@ class PraticaController extends Controller
         return back()->with('success', 'Fascicolo in coda. Aggiorna la pagina per vedere lo stato.');
     }
 
-
     public function show($id, MetadataResolver $resolver)
     {
-        // 📌 Carica pratica
+        // 📌 Pratica + ultimo metadata
         $pratica = Pratica::with('ultimoMetadata')->findOrFail($id);
 
-        // 📁 Percorso cartella PDF della pratica
+        // 📁 Percorso PDF
         $folder = Tenant::praticaPdfFolder($pratica->cartella);
 
-        // 📄 Lista PDF nella cartella
+        // 📄 PDF presenti
         $pdfFiles = collect(File::files($folder))
-            ->filter(fn($f) => strtolower($f->getExtension()) === 'pdf')
-            ->map(fn($f) => [
+            ->filter(fn ($f) => strtolower($f->getExtension()) === 'pdf')
+            ->map(fn ($f) => [
                 'name' => $f->getFilename(),
-                'url'  => $this->buildPdfUrl($pratica->cartella, $f->getFilename())
+                'url'  => $this->buildPdfUrl($pratica->cartella, $f->getFilename()),
             ])
             ->values()
             ->toArray();
 
-        // 📚 Accessi agli Atti già creati
+        // 📚 Accessi agli atti
         $accessi = AccessoAtti::where('pratica_id', $pratica->id)
-            ->orderBy('versione', 'desc')
+            ->orderByDesc('versione')
             ->get();
 
+        // 📦 Fascicoli
         $fascicoli = FascicoloGenerazione::where('pratica_id', $pratica->id)
-            ->orderBy('created_at', 'desc')
+            ->orderByDesc('created_at')
             ->get();
 
         $fascicoloInCorso = FascicoloZip::where('pratica_id', $pratica->id)
@@ -83,31 +83,51 @@ class PraticaController extends Controller
 
         $fascicoloZip = $fascicoloInCorso ?? $fascicoloCompletato;
 
-        // Se il fascicolo è "completed" ma il file è mancante/scaduto, reset e rimettiamo in coda
-        if ($fascicoloZip && $fascicoloZip->stato === 'completed' && $fascicoloZip->file_zip && !File::exists($fascicoloZip->file_zip)) {
+        // 🔁 ZIP scaduto → rigenera
+        if (
+            $fascicoloZip &&
+            $fascicoloZip->stato === 'completed' &&
+            $fascicoloZip->file_zip &&
+            !File::exists($fascicoloZip->file_zip)
+        ) {
             $fascicoloZip->update([
-                'stato' => 'pending',
+                'stato'    => 'pending',
                 'progress' => 0,
                 'file_zip' => null,
             ]);
+
             GeneraFascicoloJob::dispatch($fascicoloZip->id);
-            session()->flash('info', 'Il fascicolo è stato rigenerato perché il file ZIP non è più disponibile.');
+
+            session()->flash(
+                'info',
+                'Il fascicolo è stato rigenerato perché il file ZIP non è più disponibile.'
+            );
         }
 
+        // 🔎 Metadata resolved
         $resolved = $resolver->resolve($pratica);
         $metadataDiff = $resolver->diff($pratica);
-        $ultimaVersioneMetadata = $pratica->ultimoMetadata ? $pratica->ultimoMetadata->versione : 0;
+        $ultimaVersioneMetadata = $pratica->ultimoMetadata?->versione ?? 0;
 
-        // 🔥 Passiamo tutto alla view
+        // 🧩 Gruppo pratica (originale vs resolved)
+        $gruppoPraticaOriginal = $pratica->gruppo_bat;
+        $gruppoPraticaResolved = $resolved['gruppo_pratica']
+            ?? $resolved['gruppo_bat']
+            ?? $gruppoPraticaOriginal;
+
         return view('pratica.show', [
-            'pratica'  => $pratica,
-            'resolved' => $resolved,
-            'metadataDiff' => $metadataDiff,
-            'ultimaVersioneMetadata' => $ultimaVersioneMetadata,
-            'pdfFiles' => $pdfFiles,
-            'accessi'  => $accessi,
-            'fascicoli' => $fascicoli,
-            'fascicoloZip' => $fascicoloZip,
+            'pratica'                   => $pratica,
+            'resolved'                  => $resolved,
+            'metadataDiff'              => $metadataDiff,
+            'ultimaVersioneMetadata'    => $ultimaVersioneMetadata,
+            'pdfFiles'                  => $pdfFiles,
+            'accessi'                   => $accessi,
+            'fascicoli'                 => $fascicoli,
+            'fascicoloZip'              => $fascicoloZip,
+
+            // 👇 NUOVI
+            'gruppoPraticaOriginal'     => $gruppoPraticaOriginal,
+            'gruppoPraticaResolved'     => $gruppoPraticaResolved,
         ]);
     }
 
@@ -125,10 +145,10 @@ class PraticaController extends Controller
             ->findOrFail($fascicoloId);
 
         return response()->json([
-            'stato'     => $fascicolo->stato,
-            'progress'  => $fascicolo->progress,
-            'errore'    => $fascicolo->errore,
-            'download'  => ($fascicolo->stato === 'completed' && $fascicolo->file_zip)
+            'stato'    => $fascicolo->stato,
+            'progress' => $fascicolo->progress,
+            'errore'   => $fascicolo->errore,
+            'download' => ($fascicolo->stato === 'completed' && $fascicolo->file_zip)
                 ? route('pratica.fascicolo.download', [$praticaId, $fascicoloId])
                 : null,
         ]);
@@ -173,28 +193,28 @@ class PraticaController extends Controller
         $pratica = Pratica::with('metadataAggiornati')->findOrFail($id);
 
         $validated = $request->validate([
-            'oggetto' => 'nullable|string',
-            'numero_protocollo' => 'nullable|string',
-            'data_protocollo' => 'nullable|string',
-            'numero_rilascio' => 'nullable|string',
-            'data_rilascio' => 'nullable|string',
-            'anno_presentazione' => 'nullable|string',
-            'numero_pratica' => 'nullable|string',
-            'rich_cognome1' => 'nullable|string',
-            'rich_nome1' => 'nullable|string',
-            'rich_cognome2' => 'nullable|string',
-            'rich_nome2' => 'nullable|string',
-            'rich_cognome3' => 'nullable|string',
-            'rich_nome3' => 'nullable|string',
-            'area_circolazione' => 'nullable|string',
-            'civico_esponente' => 'nullable|string',
-            'foglio' => 'nullable|string',
-            'particella_sub' => 'nullable|string',
-            'nota' => 'nullable|string',
-            'riferimento_libero' => 'nullable|string',
+            'oggetto'               => 'nullable|string',
+            'numero_protocollo'     => 'nullable|string',
+            'data_protocollo'       => 'nullable|string',
+            'numero_rilascio'       => 'nullable|string',
+            'data_rilascio'         => 'nullable|string',
+            'anno_presentazione'    => 'nullable|string',
+            'numero_pratica'        => 'nullable|string',
+            'rich_cognome1'         => 'nullable|string',
+            'rich_nome1'            => 'nullable|string',
+            'rich_cognome2'         => 'nullable|string',
+            'rich_nome2'            => 'nullable|string',
+            'rich_cognome3'         => 'nullable|string',
+            'rich_nome3'            => 'nullable|string',
+            'area_circolazione'     => 'nullable|string',
+            'civico_esponente'      => 'nullable|string',
+            'foglio'                => 'nullable|string',
+            'particella_sub'        => 'nullable|string',
+            'nota'                  => 'nullable|string',
+            'riferimento_libero'    => 'nullable|string',
+            'gruppo_pratica'        => 'nullable|string', // 👈 pronto
         ]);
 
-        // Rimuove chiavi vuote per evitare sovrascritture inutili
         $payload = [];
         foreach ($validated as $key => $value) {
             if ($request->has($key)) {
@@ -210,9 +230,9 @@ class PraticaController extends Controller
 
         MetadataAggiornato::create([
             'pratica_id' => $pratica->id,
-            'user_id' => null,
-            'versione' => $nextVersion,
-            'dati' => $payload,
+            'user_id'    => null,
+            'versione'   => $nextVersion,
+            'dati'       => $payload,
         ]);
 
         return back()->with('success', 'Metadati aggiornati (versione ' . $nextVersion . ').');
