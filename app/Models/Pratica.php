@@ -35,7 +35,24 @@ class Pratica extends Model
         'pratica_id',
         'cartella',
         'numero_pdf',
+        'gruppo_bat',
+
     ];
+
+    public function scopeByGruppoPratica($query, string $gruppo)
+    {
+        return $query->where('gruppo_bat', $gruppo);
+    }
+
+    public function getGruppoPraticaAttribute()
+    {
+        return $this->gruppo_bat;
+    }
+
+    public function setGruppoPraticaAttribute($value)
+    {
+        $this->gruppo_bat = $value;
+    }
 
     public function metadataAggiornati()
     {
