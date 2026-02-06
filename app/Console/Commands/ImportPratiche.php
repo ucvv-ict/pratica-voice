@@ -8,7 +8,7 @@ use App\Models\Pratica;
 class ImportPratiche extends Command
 {
     protected $signature = 'pratiche:import {file}';
-    protected $description = 'Importa pratiche dal CSV ignorando colonne extra';
+    protected $description = 'Importa o aggiorna pratiche da CSV (idempotente)';
 
     public function handle()
     {
@@ -16,47 +16,47 @@ class ImportPratiche extends Command
 
         if (!file_exists($file)) {
             $this->error("File non trovato: $file");
-            return;
+            return Command::FAILURE;
         }
 
         $fh = fopen($file, 'r');
-
         if (!$fh) {
             $this->error("Impossibile aprire il file CSV.");
-            return;
+            return Command::FAILURE;
         }
 
         // --- 1) Leggi header completo ---
         $rawHeader = fgetcsv($fh, 0, ';');
 
-        // Trova la posizione della colonna PraticaID
+        // Colonna chiave
         $praticaIdIndex = array_search('PraticaID', $rawHeader);
-
         if ($praticaIdIndex === false) {
             $this->error("PraticaID non trovato nell'header!");
-            return;
+            return Command::FAILURE;
         }
 
-        // Usa SOLO le prime colonne fino a PraticaID
+        // Colonna BAT (opzionale)
+        $batIndex = array_search('BAT', $rawHeader);
+
+        // Header pulito: SOLO fino a PraticaID
         $cleanHeader = array_slice($rawHeader, 0, $praticaIdIndex + 1);
 
         $count = 0;
 
-        // --- 2) Leggi tutte le righe ---
-        while (($row = fgetcsv($fh, 0, ';')) !== false) {
+        // --- 2) Leggi righe ---
+        while (($fullRow = fgetcsv($fh, 0, ';')) !== false) {
 
-            // Taglia la riga alle stesse colonne dell'header pulito
-            $row = array_slice($row, 0, count($cleanHeader));
-
-            // Pad se la riga è più corta (alcune hanno campi vuoti)
+            // Riga pulita per i metadati classici
+            $row = array_slice($fullRow, 0, count($cleanHeader));
             $row = array_pad($row, count($cleanHeader), null);
 
-            // Combina header → riga
             $data = @array_combine($cleanHeader, $row);
-            if (!$data) continue;
+            if (!$data || empty($data['PraticaID'])) {
+                continue;
+            }
 
-            // --- 3) Salva nel database ---
-            Pratica::create([
+            // --- 3) Payload pratiche ---
+            $payload = [
                 'anno_presentazione'   => $data['AnnoPresentazione'] ?? null,
                 'data_protocollo'      => $data['DataProtocollo'] ?? null,
                 'numero_protocollo'    => $data['NumeroProtocollo'] ?? null,
@@ -80,17 +80,30 @@ class ImportPratiche extends Command
                 'rich_cognome3'        => $data['RichiedenteCognome3'] ?? null,
                 'rich_nome3'           => $data['RichiedenteNome3'] ?? null,
                 'sigla_tipo_pratica'   => $data['SiglaTipoPratica'] ?? null,
-                'pratica_id'           => $data['PraticaID'] ?? null,
+                'cartella'             => $data['PraticaID'],
+            ];
 
-                'cartella'             => $data['PraticaID'] ?? null,
-            ]);
+            // --- 4) BAT → gruppo_bat ---
+            if ($batIndex !== false && isset($fullRow[$batIndex]) && trim($fullRow[$batIndex]) !== '') {
+                $payload['gruppo_bat'] = trim($fullRow[$batIndex]);
+            }
+
+            // --- 5) Upsert idempotente ---
+            Pratica::updateOrCreate(
+                ['pratica_id' => $data['PraticaID']],
+                $payload
+            );
+
+            // --- 6) Output diagnostico ---
+            $this->line("✔ {$data['PraticaID']} | BAT: " . ($payload['gruppo_bat'] ?? '-'));
 
             $count++;
         }
 
         fclose($fh);
 
-        $this->info("✔ Importazione completata: $count pratiche importate.");
+        $this->info("✔ Importazione completata (idempotente): $count righe processate.");
+
+        return Command::SUCCESS;
     }
 }
-
