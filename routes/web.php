@@ -132,8 +132,17 @@ Route::get('/pdf-laravel/{cartella}/{file}', function ($cartella, $file) {
     $base = \App\Support\Tenant::praticaPdfFolder($cartella);
     $path = $base . '/' . $file;
 
-    // blocca directory traversal
-    if (str_contains($file, '..') || str_contains($cartella, '..') || str_contains($file, '/')) {
+    // blocca directory traversal reale
+    if ($file === '' || $cartella === '') {
+        abort(400);
+    }
+
+    if (str_contains($file, '/') || str_contains($cartella, '/')) {
+        abort(400);
+    }
+
+    // blocca solo sequenze tipo ../
+    if (preg_match('#(^|/)\.\.(?:/|$)#', $file) || preg_match('#(^|/)\.\.(?:/|$)#', $cartella)) {
         abort(400);
     }
 
