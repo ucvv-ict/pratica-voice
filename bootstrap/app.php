@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\CleanTmpFascicoli;
 use App\Console\Commands\FascicoliCleanup;
 use App\Console\Commands\ImportPdfFiles;
 use App\Console\Commands\ImportPratiche;
@@ -20,8 +21,14 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('fascicoli:cleanup')->hourly();
+
+        $schedule->command('fascicoli:clean-tmp --days=60')
+            ->dailyAt('03:30')
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/clean-tmp-fascicoli.log'));
     })
     ->withCommands([
+        CleanTmpFascicoli::class,
         FascicoliCleanup::class,
         ImportPdfFiles::class,
         ImportPratiche::class,
