@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\StatistichePdfService;
 use App\Support\Tenant;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
@@ -10,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StatisticheController extends Controller
@@ -25,6 +27,7 @@ class StatisticheController extends Controller
             'heatmap' => $this->heatmap(),
             'cumulativo' => $this->cumulativo(),
             'manutenzione' => $this->manutenzione($filters),
+            'confronto' => $this->confronto($filters),
             'filters' => $filters,
         ]);
     }
@@ -55,6 +58,35 @@ class StatisticheController extends Controller
 
             fclose($output);
         }, 'statistiche-fascicoli.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function pdf(Request $request, StatistichePdfService $pdfService)
+    {
+        $filters = $this->resolveFilters($request);
+        $monthlyFilters = [...$filters, 'group' => 'month'];
+        $manutenzione = $this->manutenzione($filters);
+        $confronto = $this->confronto($filters);
+        $tenantSlug = Str::slug(Tenant::slug() ?: Tenant::name()) ?: 'installazione';
+        $periodSlug = $filters['from'] || $filters['to']
+            ? ($filters['from']?->format('Y-m-d') ?? 'inizio').'_'.($filters['to']?->format('Y-m-d') ?? 'oggi')
+            : 'tutto-periodo';
+
+        $content = $pdfService->generate([
+            'tenant' => Tenant::name(),
+            'periodo' => $filters['period_label'],
+            'generato_il' => now()->format('d/m/Y H:i'),
+            'riepilogo' => $this->riepilogo($filters),
+            'utilizzo_mensile' => $this->statistiche($monthlyFilters),
+            'manutenzione' => $manutenzione,
+            'confronto' => $confronto,
+            'confronto_mensile' => $confronto['mensili'],
+        ]);
+
+        return response($content, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="praticavoice-statistiche-'.$tenantSlug.'-'.$periodSlug.'.pdf"',
+            'Content-Length' => (string) strlen($content),
+        ]);
     }
 
     private function resolveFilters(Request $request): array
@@ -373,6 +405,88 @@ class StatisticheController extends Controller
                 ->distinct()
                 ->count('commit'),
             'mensili' => $mensili,
+        ];
+    }
+
+    private function confronto(array $filters): array
+    {
+        $monthExpression = $this->periodExpression('month');
+        $utilizzo = $this->applyPeriod(DB::table('fascicoli_generazione'), $filters)
+            ->where('stato', 'completed')
+            ->selectRaw("{$monthExpression} as mese")
+            ->selectRaw('COUNT(*) as fascicoli_completati')
+            ->groupByRaw($monthExpression)
+            ->pluck('fascicoli_completati', 'mese');
+
+        $deployAvailable = Schema::hasTable('deploy_history');
+        $deploy = collect();
+        $commitDistintiPeriodo = 0;
+
+        if ($deployAvailable) {
+            $deployMonthExpression = $this->deployMonthExpression();
+            $deployDayExpression = $this->deployDayExpression();
+            $commitColumn = DB::connection()->getQueryGrammar()->wrap('commit');
+            $deployQuery = $this->applyPeriod(
+                DB::table('deploy_history')->where('notes', 'deploy.sh')->whereNotNull('created_at'),
+                $filters
+            );
+
+            $deploy = (clone $deployQuery)
+                ->selectRaw("{$deployMonthExpression} as mese")
+                ->selectRaw("COUNT(DISTINCT {$deployDayExpression}) as giorni_con_deploy")
+                ->selectRaw("COUNT(DISTINCT CASE WHEN {$commitColumn} IS NOT NULL AND {$commitColumn} <> '' THEN {$commitColumn} END) as commit_distinti")
+                ->groupByRaw($deployMonthExpression)
+                ->get()
+                ->keyBy('mese');
+
+            $commitDistintiPeriodo = (clone $deployQuery)
+                ->whereNotNull('commit')
+                ->where('commit', '<>', '')
+                ->distinct()
+                ->count('commit');
+        }
+
+        $monthKeys = $utilizzo->keys()->merge($deploy->keys())->unique()->sort()->values();
+        $rangeFrom = $filters['from']?->startOfMonth()
+            ?? ($monthKeys->isNotEmpty() ? CarbonImmutable::parse($monthKeys->first())->startOfMonth() : null);
+        $rangeTo = $filters['to']?->startOfMonth()
+            ?? ($monthKeys->isNotEmpty() ? CarbonImmutable::parse($monthKeys->last())->startOfMonth() : null);
+
+        if ($rangeFrom && ! $rangeTo) {
+            $currentMonth = CarbonImmutable::today()->startOfMonth();
+            $rangeTo = $rangeFrom->greaterThan($currentMonth) ? $rangeFrom : $currentMonth;
+        } elseif ($rangeTo && ! $rangeFrom) {
+            $rangeFrom = $rangeTo;
+        }
+
+        $mensili = collect();
+        if ($rangeFrom && $rangeTo && $rangeFrom->lessThanOrEqualTo($rangeTo)) {
+            $mensili = collect(CarbonPeriod::create($rangeFrom, '1 month', $rangeTo))
+                ->map(function ($month) use ($utilizzo, $deploy): object {
+                    $key = $month->format('Y-m');
+                    $deployRow = $deploy->get($key);
+
+                    return (object) [
+                        'mese' => $key,
+                        'label' => $month->locale('it')->translatedFormat('M Y'),
+                        'fascicoli_completati' => (int) ($utilizzo[$key] ?? 0),
+                        'giorni_con_deploy' => (int) ($deployRow->giorni_con_deploy ?? 0),
+                        'commit_distinti' => (int) ($deployRow->commit_distinti ?? 0),
+                    ];
+                });
+        }
+
+        $totaleFascicoli = (int) $mensili->sum('fascicoli_completati');
+        $totaleGiorniDeploy = (int) $mensili->sum('giorni_con_deploy');
+
+        return [
+            'deploy_available' => $deployAvailable,
+            'mensili' => $mensili,
+            'fascicoli' => $totaleFascicoli,
+            'giorni_deploy' => $totaleGiorniDeploy,
+            'commit_distinti' => $commitDistintiPeriodo,
+            'fascicoli_per_giorno_deploy' => $totaleGiorniDeploy > 0 ? round($totaleFascicoli / $totaleGiorniDeploy, 1) : null,
+            'fascicoli_per_commit' => $commitDistintiPeriodo > 0 ? round($totaleFascicoli / $commitDistintiPeriodo, 1) : null,
         ];
     }
 

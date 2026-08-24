@@ -8,10 +8,16 @@
             <p class="mt-1 text-sm text-gray-600">Dati basati esclusivamente sulle generazioni dei fascicoli.</p>
             <p class="mt-2 text-sm font-semibold text-gray-700">Periodo: {{ $filters['period_label'] }}</p>
         </div>
-        <a href="{{ route('statistiche.csv', request()->only(['from', 'to', 'group', 'preset'])) }}"
-           class="inline-flex items-center rounded bg-blue-600 px-4 py-2 font-semibold text-white shadow hover:bg-blue-700">
-            Esporta CSV
-        </a>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ route('statistiche.csv', request()->only(['from', 'to', 'group', 'preset'])) }}"
+               class="inline-flex items-center rounded bg-blue-600 px-4 py-2 font-semibold text-white shadow hover:bg-blue-700">
+                Esporta CSV
+            </a>
+            <a href="{{ route('statistiche.pdf', request()->only(['from', 'to', 'group', 'preset'])) }}"
+               class="inline-flex items-center rounded bg-slate-700 px-4 py-2 font-semibold text-white shadow hover:bg-slate-800">
+                Esporta PDF
+            </a>
+        </div>
     </div>
 
     <form method="GET" action="{{ route('statistiche.index') }}" class="bg-white shadow rounded-xl border border-gray-200 p-5">
@@ -260,6 +266,88 @@
         </div>
     @endif
 
+    <section class="border-t-4 border-indigo-400 pt-6 space-y-5" aria-labelledby="comparison-title">
+        <div>
+            <h2 id="comparison-title" class="text-xl font-bold">📊 Confronto utilizzo / manutenzione</h2>
+            <p class="mt-1 text-sm text-gray-600">Lettura mensile con utilizzo del software e attività tecnica registrata nello stesso periodo.</p>
+        </div>
+
+        @if($confronto['mensili']->isEmpty())
+            <div class="bg-white shadow rounded-xl border border-gray-200 p-8 text-center">
+                <h3 class="font-semibold">Nessun dato disponibile nel periodo</h3>
+                <p class="mt-2 text-sm text-gray-600">Non risultano fascicoli completati o deploy automatici da confrontare.</p>
+            </div>
+        @else
+            @php
+                $comparisonWidth = 900;
+                $comparisonHeight = 330;
+                $comparisonPaddingX = 55;
+                $comparisonPaddingY = 35;
+                $comparisonPlotWidth = $comparisonWidth - ($comparisonPaddingX * 2);
+                $comparisonPlotHeight = $comparisonHeight - ($comparisonPaddingY * 2);
+                $comparisonLeftMax = max(1, (int) $confronto['mensili']->max('fascicoli_completati'));
+                $comparisonRightMax = max(1, (int) $confronto['mensili']->max(fn ($row) => max($row->giorni_con_deploy, $row->commit_distinti)));
+                $comparisonX = fn ($index) => $comparisonPaddingX + ($confronto['mensili']->count() === 1 ? $comparisonPlotWidth / 2 : ($index * $comparisonPlotWidth / ($confronto['mensili']->count() - 1)));
+                $comparisonLeftY = fn ($value) => $comparisonPaddingY + $comparisonPlotHeight - (((int) $value / $comparisonLeftMax) * $comparisonPlotHeight);
+                $comparisonRightY = fn ($value) => $comparisonPaddingY + $comparisonPlotHeight - (((int) $value / $comparisonRightMax) * $comparisonPlotHeight);
+                $comparisonSlotWidth = $comparisonPlotWidth / max(1, $confronto['mensili']->count());
+                $comparisonBarWidth = min(42, max(6, $comparisonSlotWidth * .55));
+                $comparisonDeployPoints = $confronto['mensili']->values()->map(fn ($row, $index) => $comparisonX($index).','.$comparisonRightY($row->giorni_con_deploy))->implode(' ');
+                $comparisonCommitPoints = $confronto['mensili']->values()->map(fn ($row, $index) => $comparisonX($index).','.$comparisonRightY($row->commit_distinti))->implode(' ');
+            @endphp
+
+            <div class="bg-white shadow rounded-xl border border-gray-200 p-5 relative">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h3 class="text-lg font-semibold">Utilizzo e manutenzione per mese</h3>
+                    <div class="flex flex-wrap gap-4 text-xs text-gray-600">
+                        <span><span class="inline-block w-3 h-3 bg-blue-500 mr-1"></span>Fascicoli completati</span>
+                        <span><span class="inline-block w-3 h-[3px] bg-orange-500 mr-1 align-middle"></span>Giorni con deploy</span>
+                        <span><span class="inline-block w-3 h-[3px] bg-rose-500 mr-1 align-middle"></span>Commit distinti</span>
+                    </div>
+                </div>
+                <div id="comparison-chart-scroll" class="overflow-x-auto">
+                    <svg id="comparison-chart" viewBox="0 0 {{ $comparisonWidth }} {{ $comparisonHeight }}" class="w-full min-w-[700px]" role="img" aria-label="Confronto mensile tra fascicoli completati e manutenzione tecnica">
+                        <line x1="{{ $comparisonPaddingX }}" y1="{{ $comparisonPaddingY }}" x2="{{ $comparisonPaddingX }}" y2="{{ $comparisonHeight - $comparisonPaddingY }}" stroke="#3b82f6" />
+                        <line x1="{{ $comparisonWidth - $comparisonPaddingX }}" y1="{{ $comparisonPaddingY }}" x2="{{ $comparisonWidth - $comparisonPaddingX }}" y2="{{ $comparisonHeight - $comparisonPaddingY }}" stroke="#f97316" />
+                        <line x1="{{ $comparisonPaddingX }}" y1="{{ $comparisonHeight - $comparisonPaddingY }}" x2="{{ $comparisonWidth - $comparisonPaddingX }}" y2="{{ $comparisonHeight - $comparisonPaddingY }}" stroke="currentColor" class="text-gray-500" />
+                        <text x="{{ $comparisonPaddingX - 8 }}" y="{{ $comparisonPaddingY + 4 }}" text-anchor="end" fill="#2563eb" style="font-size:11px">{{ $comparisonLeftMax }}</text>
+                        <text x="{{ $comparisonWidth - $comparisonPaddingX + 8 }}" y="{{ $comparisonPaddingY + 4 }}" text-anchor="start" fill="#ea580c" style="font-size:11px">{{ $comparisonRightMax }}</text>
+                        <text x="16" y="{{ $comparisonHeight / 2 }}" text-anchor="middle" fill="#2563eb" transform="rotate(-90 16 {{ $comparisonHeight / 2 }})" style="font-size:10px">Fascicoli completati</text>
+                        <text x="{{ $comparisonWidth - 12 }}" y="{{ $comparisonHeight / 2 }}" text-anchor="middle" fill="#ea580c" transform="rotate(90 {{ $comparisonWidth - 12 }} {{ $comparisonHeight / 2 }})" style="font-size:10px">Deploy / commit</text>
+
+                        @foreach($confronto['mensili'] as $index => $row)
+                            <rect x="{{ $comparisonX($index) - ($comparisonBarWidth / 2) }}" y="{{ $comparisonLeftY($row->fascicoli_completati) }}" width="{{ $comparisonBarWidth }}" height="{{ ($comparisonHeight - $comparisonPaddingY) - $comparisonLeftY($row->fascicoli_completati) }}" fill="#3b82f6" opacity=".78" rx="2" />
+                        @endforeach
+                        <polyline points="{{ $comparisonDeployPoints }}" fill="none" stroke="#f97316" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+                        <polyline points="{{ $comparisonCommitPoints }}" fill="none" stroke="#f43f5e" stroke-width="2" stroke-dasharray="5 3" stroke-linejoin="round" stroke-linecap="round" />
+
+                        @foreach($confronto['mensili'] as $index => $row)
+                            <circle cx="{{ $comparisonX($index) }}" cy="{{ $comparisonRightY($row->giorni_con_deploy) }}" r="4" fill="#f97316" />
+                            <circle cx="{{ $comparisonX($index) }}" cy="{{ $comparisonRightY($row->commit_distinti) }}" r="3" fill="#f43f5e" />
+                            <rect class="comparison-hit-point" x="{{ $comparisonX($index) - ($comparisonSlotWidth / 2) }}" y="{{ $comparisonPaddingY }}" width="{{ max(10, $comparisonSlotWidth) }}" height="{{ $comparisonPlotHeight }}" fill="transparent"
+                                  data-label="{{ $row->label }}" data-fascicoli="{{ $row->fascicoli_completati }}" data-giorni="{{ $row->giorni_con_deploy }}" data-commit="{{ $row->commit_distinti }}" />
+                            <text x="{{ $comparisonX($index) }}" y="{{ $comparisonHeight - 9 }}" text-anchor="middle" fill="currentColor" class="comparison-x-axis-tick text-gray-600" data-index="{{ $index }}" style="display:none;font-size:10px">{{ $row->mese }}</text>
+                        @endforeach
+                    </svg>
+                </div>
+                <div id="comparison-tooltip" class="hidden fixed z-50 pointer-events-none rounded-lg bg-gray-900 text-white text-xs shadow-lg p-3 leading-5"></div>
+            </div>
+        @endif
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div class="bg-white shadow rounded-xl border border-gray-200 p-4"><p class="text-sm text-gray-600">Fascicoli completati nel periodo</p><p class="mt-2 text-xl font-bold">{{ $confronto['fascicoli'] }}</p></div>
+            <div class="bg-white shadow rounded-xl border border-gray-200 p-4"><p class="text-sm text-gray-600">Giorni con deploy nel periodo</p><p class="mt-2 text-xl font-bold">{{ $confronto['giorni_deploy'] }}</p></div>
+            <div class="bg-white shadow rounded-xl border border-gray-200 p-4"><p class="text-sm text-gray-600">Commit distinti deployati nel periodo</p><p class="mt-2 text-xl font-bold">{{ $confronto['commit_distinti'] }}</p></div>
+            <div class="bg-white shadow rounded-xl border border-gray-200 p-4"><p class="text-sm text-gray-600">Fascicoli per giorno con deploy</p><p class="mt-2 text-xl font-bold">{{ $confronto['fascicoli_per_giorno_deploy'] !== null ? number_format($confronto['fascicoli_per_giorno_deploy'], 1, ',', '.') : '—' }}</p>@if($confronto['fascicoli_per_giorno_deploy'] === null)<p class="mt-1 text-xs text-gray-500">Nessun deploy registrato nel periodo</p>@endif</div>
+            <div class="bg-white shadow rounded-xl border border-gray-200 p-4"><p class="text-sm text-gray-600">Fascicoli per commit deployato</p><p class="mt-2 text-xl font-bold">{{ $confronto['fascicoli_per_commit'] !== null ? number_format($confronto['fascicoli_per_commit'], 1, ',', '.') : '—' }}</p>@if($confronto['fascicoli_per_commit'] === null)<p class="mt-1 text-xs text-gray-500">Nessun deploy registrato nel periodo</p>@endif</div>
+        </div>
+
+        @if(! $confronto['deploy_available'])
+            <p class="text-xs text-amber-700">La tabella di audit dei deploy non è disponibile: il grafico mostra soltanto i dati di utilizzo.</p>
+        @endif
+        <p class="text-xs text-gray-600">I dati di manutenzione tecnica derivano dalle registrazioni automatiche dei deploy disponibili sul sistema e hanno valore indicativo.</p>
+    </section>
+
     <section class="border-t-4 border-slate-400 pt-6 space-y-5" aria-labelledby="maintenance-title">
         <div>
             <h2 id="maintenance-title" class="text-xl font-bold">🛠️ Manutenzione tecnica</h2>
@@ -349,6 +437,8 @@
 
     const chart = document.getElementById('statistics-chart');
     const chartScroll = document.getElementById('statistics-chart-scroll');
+    const comparisonChart = document.getElementById('comparison-chart');
+    const comparisonChartScroll = document.getElementById('comparison-chart-scroll');
     let resizeFrame;
 
     function updateXAxisTicks() {
@@ -386,10 +476,35 @@
         });
     }
 
+    function updateComparisonXAxisTicks() {
+        if (!comparisonChart || !comparisonChartScroll) return;
+
+        const ticks = Array.from(comparisonChart.querySelectorAll('.comparison-x-axis-tick'));
+        const count = ticks.length;
+        if (!count) return;
+
+        const width = comparisonChartScroll.clientWidth;
+        const maxTicks = width < 640 ? Math.min(6, count) : Math.min(12, count);
+        const step = maxTicks <= 1 ? count : Math.max(1, Math.ceil((count - 1) / (maxTicks - 1)));
+        const visibleCount = ticks.filter((tick, index) => index === 0 || index === count - 1 || index % step === 0).length;
+        const rotate = visibleCount > 1 && width / (visibleCount - 1) < 58;
+
+        ticks.forEach((tick, index) => {
+            const show = index === 0 || index === count - 1 || index % step === 0;
+            tick.style.display = show ? '' : 'none';
+            tick.setAttribute('text-anchor', rotate ? 'end' : 'middle');
+            tick.setAttribute('transform', rotate ? `rotate(-30 ${tick.getAttribute('x')} ${tick.getAttribute('y')})` : '');
+        });
+    }
+
     updateXAxisTicks();
+    updateComparisonXAxisTicks();
     window.addEventListener('resize', () => {
         cancelAnimationFrame(resizeFrame);
-        resizeFrame = requestAnimationFrame(updateXAxisTicks);
+        resizeFrame = requestAnimationFrame(() => {
+            updateXAxisTicks();
+            updateComparisonXAxisTicks();
+        });
     });
 
     const tooltip = document.getElementById('chart-tooltip');
@@ -424,6 +539,12 @@
     attachTooltip('.cumulative-hit-point', 'cumulative-tooltip', point =>
         `<strong>${point.dataset.label}</strong><br>` +
         `Totale cumulativo: ${point.dataset.totale}`
+    );
+    attachTooltip('.comparison-hit-point', 'comparison-tooltip', point =>
+        `<strong>${point.dataset.label}</strong><br>` +
+        `Fascicoli completati: ${point.dataset.fascicoli}<br>` +
+        `Giorni con deploy: ${point.dataset.giorni}<br>` +
+        `Commit distinti deployati: ${point.dataset.commit}`
     );
 
     function attachTooltip(selector, tooltipId, content) {

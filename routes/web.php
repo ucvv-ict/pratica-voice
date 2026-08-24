@@ -37,6 +37,9 @@ Route::get('/statistiche', [StatisticheController::class, 'index'])
 Route::get('/statistiche/csv', [StatisticheController::class, 'csv'])
     ->name('statistiche.csv');
 
+Route::get('/statistiche/pdf', [StatisticheController::class, 'pdf'])
+    ->name('statistiche.pdf');
+
 /*
 |--------------------------------------------------------------------------
 | Pratica

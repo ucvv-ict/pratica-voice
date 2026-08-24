@@ -7,6 +7,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Smalot\PdfParser\Parser;
 use Tests\TestCase;
 
 class StatisticheTest extends TestCase
@@ -318,6 +319,136 @@ class StatisticheTest extends TestCase
         $this->assertSame('15–21 dic 2025', $settimana->tooltip_label);
         $this->assertSame('2025-12', $mese->axis_label);
         $this->assertSame('dicembre 2025', $mese->tooltip_label);
+    }
+
+    public function test_il_confronto_allinea_utilizzo_e_deploy_per_mese(): void
+    {
+        $this->createDeployHistoryTable();
+        $pratica = Pratica::create();
+        $this->genera($pratica, 'completed', '2026-01-05 08:00:00');
+        $this->genera($pratica, 'completed', '2026-01-06 08:00:00');
+        $this->genera($pratica, 'completed', '2026-03-01 08:00:00');
+        $this->deploy('2026-01-10 10:00:00', 'aaaa1111', 'deploy.sh');
+        $this->deploy('2026-01-11 10:00:00', 'aaaa1111', 'deploy.sh');
+        $this->deploy('2026-02-10 10:00:00', 'bbbb2222', 'deploy.sh');
+
+        $response = $this->get(route('statistiche.index'));
+        $confronto = $response->viewData('confronto');
+
+        $this->assertSame(['2026-01', '2026-02', '2026-03'], $confronto['mensili']->pluck('mese')->all());
+        $this->assertSame([2, 0, 1], $confronto['mensili']->pluck('fascicoli_completati')->all());
+        $this->assertSame([2, 1, 0], $confronto['mensili']->pluck('giorni_con_deploy')->all());
+        $this->assertSame([1, 1, 0], $confronto['mensili']->pluck('commit_distinti')->all());
+        $this->assertSame(3, $confronto['fascicoli']);
+        $this->assertSame(3, $confronto['giorni_deploy']);
+        $this->assertSame(2, $confronto['commit_distinti']);
+        $this->assertSame(1.0, $confronto['fascicoli_per_giorno_deploy']);
+        $this->assertSame(1.5, $confronto['fascicoli_per_commit']);
+        $response->assertSee('Confronto utilizzo / manutenzione');
+    }
+
+    public function test_il_confronto_rispetta_i_filtri_data(): void
+    {
+        $this->createDeployHistoryTable();
+        $pratica = Pratica::create();
+        $this->genera($pratica, 'completed', '2026-01-05 08:00:00');
+        $this->genera($pratica, 'completed', '2026-02-05 08:00:00');
+        $this->deploy('2026-01-10 10:00:00', 'aaaa1111', 'deploy.sh');
+        $this->deploy('2026-02-10 10:00:00', 'bbbb2222', 'deploy.sh');
+
+        $response = $this->get(route('statistiche.index', [
+            'from' => '2026-01-01',
+            'to' => '2026-01-31',
+        ]));
+        $confronto = $response->viewData('confronto');
+
+        $this->assertSame(['2026-01'], $confronto['mensili']->pluck('mese')->all());
+        $this->assertSame(1, $confronto['fascicoli']);
+        $this->assertSame(1, $confronto['giorni_deploy']);
+        $this->assertSame(1, $confronto['commit_distinti']);
+    }
+
+    public function test_il_confronto_mostra_l_utilizzo_senza_tabella_deploy(): void
+    {
+        $pratica = Pratica::create();
+        $this->genera($pratica, 'completed', '2026-04-05 08:00:00');
+
+        $response = $this->get(route('statistiche.index'));
+        $confronto = $response->viewData('confronto');
+
+        $this->assertFalse($confronto['deploy_available']);
+        $this->assertSame(1, $confronto['fascicoli']);
+        $this->assertSame(0, $confronto['giorni_deploy']);
+        $this->assertNull($confronto['fascicoli_per_giorno_deploy']);
+        $response->assertOk()
+            ->assertSee('il grafico mostra soltanto i dati di utilizzo')
+            ->assertSee('Nessun deploy registrato nel periodo');
+    }
+
+    public function test_esporta_un_pdf_valido_senza_filtri_e_senza_deploy_history(): void
+    {
+        config([
+            'praticavoice.tenant.name' => 'Comune di Pelago',
+            'praticavoice.tenant.slug' => 'pelago',
+        ]);
+
+        $response = $this->get(route('statistiche.pdf'));
+
+        $response->assertOk()
+            ->assertDownload('praticavoice-statistiche-pelago-tutto-periodo.pdf')
+            ->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF-', $response->getContent());
+
+        $document = (new Parser)->parseContent($response->getContent());
+        $text = $document->getText();
+        $this->assertStringContainsString('PraticaVoice', $text);
+        $this->assertStringContainsString('Comune di Pelago', $text);
+        $this->assertStringContainsString('tabella di audit dei deploy non e disponibile', $text);
+    }
+
+    public function test_il_pdf_rispetta_intervallo_tenant_e_dati_mensili(): void
+    {
+        config([
+            'praticavoice.tenant.name' => 'Comune di Pontassieve',
+            'praticavoice.tenant.slug' => 'pontassieve',
+        ]);
+        $this->createDeployHistoryTable();
+        $pratica = Pratica::create();
+        $this->genera($pratica, 'completed', '2026-01-05 08:00:00');
+        $this->genera($pratica, 'completed', '2026-02-05 08:00:00');
+        $this->deploy('2026-01-10 10:00:00', 'aaaa1111', 'deploy.sh');
+        $this->deploy('2026-02-10 10:00:00', 'bbbb2222', 'deploy.sh');
+
+        $response = $this->get(route('statistiche.pdf', [
+            'from' => '2026-01-01',
+            'to' => '2026-01-31',
+            'group' => 'day',
+        ]));
+
+        $response->assertOk()->assertDownload('praticavoice-statistiche-pontassieve-2026-01-01_2026-01-31.pdf');
+        $text = (new Parser)->parseContent($response->getContent())->getText();
+        $this->assertStringContainsString('Comune di Pontassieve', $text);
+        $this->assertStringContainsString('1 gennaio 2026', $text);
+        $this->assertStringContainsString('2026-01', $text);
+        $this->assertStringNotContainsString('2026-02', $text);
+        $this->assertStringContainsString('Giorni con deploy nel periodo', $text);
+    }
+
+    public function test_il_report_pdf_gestisce_piu_pagine(): void
+    {
+        $pratica = Pratica::create();
+        $date = CarbonImmutable::parse('2022-01-01');
+
+        for ($month = 0; $month < 48; $month++) {
+            $this->genera($pratica, 'completed', $date->addMonths($month)->format('Y-m-d 08:00:00'));
+        }
+
+        $response = $this->get(route('statistiche.pdf'));
+        $document = (new Parser)->parseContent($response->getContent());
+
+        $response->assertOk();
+        $this->assertGreaterThan(1, count($document->getPages()));
+        $this->assertStringContainsString('Confronto utilizzo / manutenzione', $document->getText());
     }
 
     private function createDeployHistoryTable(): void
