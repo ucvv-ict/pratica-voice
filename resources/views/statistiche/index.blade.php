@@ -191,7 +191,6 @@
             $pointY = fn ($value) => $paddingY + $plotHeight - (((int) $value / $maxValue) * $plotHeight);
             $completedPoints = $statistiche->values()->map(fn ($row, $index) => $pointX($index).','.$pointY($row->fascicoli_completati))->implode(' ');
             $pratichePoints = $statistiche->values()->map(fn ($row, $index) => $pointX($index).','.$pointY($row->pratiche_distinte))->implode(' ');
-            $labelStep = max(1, (int) ceil($statistiche->count() / 10));
             $hitWidth = max(12, $plotWidth / max(1, $statistiche->count()));
         @endphp
 
@@ -203,8 +202,8 @@
                     <span><span class="inline-block w-3 h-3 rounded-full bg-emerald-500 mr-1"></span>Pratiche distinte</span>
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <svg id="statistics-chart" viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" class="w-full min-w-[700px]" role="img" aria-label="Grafico dell'andamento dei fascicoli">
+            <div id="statistics-chart-scroll" class="overflow-x-auto">
+                <svg id="statistics-chart" data-group="{{ $filters['group'] }}" viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" class="w-full min-w-[700px]" role="img" aria-label="Grafico dell'andamento dei fascicoli">
                     <line x1="{{ $paddingX }}" y1="{{ $paddingY }}" x2="{{ $paddingX }}" y2="{{ $chartHeight - $paddingY }}" stroke="currentColor" class="text-gray-500" />
                     <line x1="{{ $paddingX }}" y1="{{ $chartHeight - $paddingY }}" x2="{{ $chartWidth - $paddingX }}" y2="{{ $chartHeight - $paddingY }}" stroke="currentColor" class="text-gray-500" />
                     <text x="{{ $paddingX - 8 }}" y="{{ $paddingY + 4 }}" text-anchor="end" fill="currentColor" class="text-xs text-gray-600">{{ $maxValue }}</text>
@@ -215,15 +214,14 @@
                         <circle cx="{{ $pointX($index) }}" cy="{{ $pointY($row->fascicoli_completati) }}" r="4" fill="#2563eb" />
                         <circle cx="{{ $pointX($index) }}" cy="{{ $pointY($row->pratiche_distinte) }}" r="4" fill="#10b981" />
                         <rect class="chart-hit-point cursor-pointer" x="{{ $pointX($index) - ($hitWidth / 2) }}" y="{{ $paddingY }}" width="{{ $hitWidth }}" height="{{ $plotHeight }}" fill="transparent"
-                                data-label="{{ $row->label }}"
+                                data-label="{{ $row->tooltip_label }}"
                                 data-completed="{{ $row->fascicoli_completati }}"
                                 data-pratiche="{{ $row->pratiche_distinte }}"
                                 data-errori="{{ $row->errori }}"
                                 data-totale="{{ $row->totale_generazioni }}"
                                 data-url="{{ $row->drill_url }}" />
-                        @if($index % $labelStep === 0 || $loop->last)
-                            <text x="{{ $pointX($index) }}" y="{{ $chartHeight - 8 }}" text-anchor="middle" fill="currentColor" class="text-xs text-gray-600">{{ $row->label }}</text>
-                        @endif
+                        <text x="{{ $pointX($index) }}" y="{{ $chartHeight - 8 }}" text-anchor="middle" fill="currentColor"
+                              class="x-axis-tick text-gray-600" data-index="{{ $index }}" style="display:none;font-size:11px">{{ $row->axis_label }}</text>
                     @endforeach
                 </svg>
             </div>
@@ -261,6 +259,79 @@
             </div>
         </div>
     @endif
+
+    <section class="border-t-4 border-slate-400 pt-6 space-y-5" aria-labelledby="maintenance-title">
+        <div>
+            <h2 id="maintenance-title" class="text-xl font-bold">🛠️ Manutenzione tecnica</h2>
+            <p class="mt-1 text-sm text-gray-600">I dati di deploy sono indicativi e derivano dalle registrazioni automatiche disponibili sul sistema.</p>
+            @if($filters['from'] || $filters['to'])
+                <p class="mt-1 text-xs font-semibold text-gray-600">Periodo applicato: {{ $filters['period_label'] }}</p>
+            @endif
+        </div>
+
+        @if(! $manutenzione['available'])
+            <div class="bg-white shadow rounded-xl border border-gray-200 p-8 text-center">
+                <h3 class="font-semibold">Dati di manutenzione non disponibili</h3>
+                <p class="mt-2 text-sm text-gray-600">La tabella di audit dei deploy non è presente in questa installazione.</p>
+            </div>
+        @else
+            @php
+                $ultimoDeploy = $manutenzione['ultimo_deploy'];
+                $maintenanceCards = [
+                    ['Ultimo deploy registrato', $ultimoDeploy ? \Carbon\Carbon::parse($ultimoDeploy->created_at)->format('d/m/Y H:i') : '—', $ultimoDeploy?->commit ? 'Commit '.$ultimoDeploy->commit : null],
+                    ['Deploy registrati negli ultimi 30 giorni', $manutenzione['ultimi_30_giorni'], null],
+                    ['Giorni con deploy negli ultimi 90 giorni', $manutenzione['giorni_ultimi_90'], null],
+                    ['Commit distinti deployati negli ultimi 90 giorni', $manutenzione['commit_ultimi_90'], null],
+                    ['Totale commit distinti nello storico', $manutenzione['commit_storici'], 'Non influenzato dal filtro periodo'],
+                ];
+            @endphp
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                @foreach($maintenanceCards as [$label, $value, $detail])
+                    <div class="bg-white shadow rounded-xl border border-gray-200 p-4">
+                        <p class="text-sm text-gray-600">{{ $label }}</p>
+                        <p class="mt-2 text-xl font-bold text-gray-800">{{ $value }}</p>
+                        @if($detail)<p class="mt-1 text-xs text-gray-500">{{ $detail }}</p>@endif
+                    </div>
+                @endforeach
+            </div>
+
+            @if(! $manutenzione['has_data'])
+                <div class="bg-white shadow rounded-xl border border-gray-200 p-8 text-center">
+                    <h3 class="font-semibold">Nessun deploy automatico registrato</h3>
+                    <p class="mt-2 text-sm text-gray-600">Non risultano registrazioni create da deploy.sh nel periodo selezionato.</p>
+                </div>
+            @else
+                <div class="bg-white shadow rounded-xl border border-gray-200 overflow-hidden">
+                    <div class="p-5 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold">Deploy automatici per mese</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100 text-left text-xs uppercase tracking-wide text-gray-700">
+                                <tr>
+                                    <th class="py-3 px-4">Mese</th>
+                                    <th class="py-3 px-4 text-right">Registrazioni deploy</th>
+                                    <th class="py-3 px-4 text-right">Commit distinti</th>
+                                    <th class="py-3 px-4 text-right">Giorni con deploy</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                @foreach($manutenzione['mensili'] as $row)
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="py-3 px-4 font-medium">{{ $row->mese }}</td>
+                                        <td class="py-3 px-4 text-right">{{ $row->registrazioni_deploy }}</td>
+                                        <td class="py-3 px-4 text-right">{{ $row->commit_distinti }}</td>
+                                        <td class="py-3 px-4 text-right">{{ $row->giorni_con_deploy }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
+        @endif
+    </section>
 </div>
 
 <script>
@@ -274,6 +345,51 @@
             from.value = '';
             to.value = '';
         }
+    });
+
+    const chart = document.getElementById('statistics-chart');
+    const chartScroll = document.getElementById('statistics-chart-scroll');
+    let resizeFrame;
+
+    function updateXAxisTicks() {
+        if (!chart || !chartScroll) return;
+
+        const ticks = Array.from(chart.querySelectorAll('.x-axis-tick'));
+        const count = ticks.length;
+        if (!count) return;
+
+        const width = chartScroll.clientWidth;
+        const mobile = width < 640;
+        const group = chart.dataset.group;
+        let maxTicks;
+
+        if (group === 'day') {
+            maxTicks = count <= 14 ? count : (mobile ? 5 : (count <= 31 ? 10 : 12));
+        } else if (group === 'week') {
+            maxTicks = count <= 12 ? (mobile ? Math.min(6, count) : count) : (mobile ? 5 : 10);
+        } else {
+            maxTicks = count <= 12 ? (mobile ? Math.min(6, count) : count) : (mobile ? 6 : 12);
+        }
+
+        const step = maxTicks <= 1 ? count : Math.max(1, Math.ceil((count - 1) / (maxTicks - 1)));
+        const visible = ticks.filter((tick, index) => index === 0 || index === count - 1 || index % step === 0);
+        const spacing = visible.length > 1 ? width / (visible.length - 1) : width;
+        const labelWidth = group === 'week' ? 68 : (group === 'day' ? 42 : 52);
+        const rotate = spacing < labelWidth + 6;
+
+        ticks.forEach((tick, index) => {
+            const show = index === 0 || index === count - 1 || index % step === 0;
+            tick.style.display = show ? '' : 'none';
+            tick.style.fontSize = count > maxTicks ? '10px' : '11px';
+            tick.setAttribute('text-anchor', rotate ? 'end' : 'middle');
+            tick.setAttribute('transform', rotate ? `rotate(-30 ${tick.getAttribute('x')} ${tick.getAttribute('y')})` : '');
+        });
+    }
+
+    updateXAxisTicks();
+    window.addEventListener('resize', () => {
+        cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(updateXAxisTicks);
     });
 
     const tooltip = document.getElementById('chart-tooltip');

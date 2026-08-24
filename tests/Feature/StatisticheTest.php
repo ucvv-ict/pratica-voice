@@ -34,6 +34,7 @@ class StatisticheTest extends TestCase
 
     protected function tearDown(): void
     {
+        Schema::dropIfExists('deploy_history');
         Schema::dropIfExists('fascicoli_generazione');
         Schema::dropIfExists('pratiche');
         CarbonImmutable::setTestNow();
@@ -223,6 +224,124 @@ class StatisticheTest extends TestCase
         $this->assertTrue($response->viewData('cumulativo')->isEmpty());
         $this->assertSame(365, $response->viewData('heatmap')['days']->where('in_range', true)->count());
         $response->assertOk()->assertSee('Nessun fascicolo completato disponibile.');
+    }
+
+    public function test_la_manutenzione_gestisce_la_tabella_deploy_assente(): void
+    {
+        $response = $this->get(route('statistiche.index'));
+
+        $response->assertOk()
+            ->assertSee('Manutenzione tecnica')
+            ->assertSee('La tabella di audit dei deploy non è presente');
+        $this->assertFalse($response->viewData('manutenzione')['available']);
+    }
+
+    public function test_la_manutenzione_gestisce_la_tabella_deploy_vuota(): void
+    {
+        $this->createDeployHistoryTable();
+
+        $response = $this->get(route('statistiche.index'));
+
+        $response->assertOk()->assertSee('Nessun deploy automatico registrato');
+        $this->assertTrue($response->viewData('manutenzione')['available']);
+        $this->assertFalse($response->viewData('manutenzione')['has_data']);
+    }
+
+    public function test_la_manutenzione_usa_solo_deploy_automatici_e_gestisce_i_null(): void
+    {
+        $this->createDeployHistoryTable();
+        $this->deploy('2026-08-20 10:00:00', '1234567890abcdef', 'deploy.sh');
+        $this->deploy('2026-08-20 12:00:00', '1234567890abcdef', 'deploy.sh');
+        $this->deploy('2026-07-10 10:00:00', null, 'deploy.sh');
+        $this->deploy('2026-08-21 10:00:00', 'manuale123', 'manuale');
+        $this->deploy(null, 'senza-data', 'deploy.sh');
+
+        $response = $this->get(route('statistiche.index'));
+        $manutenzione = $response->viewData('manutenzione');
+
+        $this->assertSame(2, $manutenzione['ultimi_30_giorni']);
+        $this->assertSame(2, $manutenzione['giorni_ultimi_90']);
+        $this->assertSame(1, $manutenzione['commit_ultimi_90']);
+        $this->assertSame(1, $manutenzione['commit_storici']);
+        $this->assertSame('1234567890ab', $manutenzione['ultimo_deploy']->commit);
+        $this->assertSame(['2026-07', '2026-08'], $manutenzione['mensili']->pluck('mese')->all());
+        $response->assertDontSee('manuale123')->assertDontSee('senza-data');
+    }
+
+    public function test_il_filtro_data_si_applica_ai_deploy_mensili(): void
+    {
+        $this->createDeployHistoryTable();
+        $this->deploy('2026-01-05 10:00:00', 'aaaa1111', 'deploy.sh');
+        $this->deploy('2026-01-06 10:00:00', 'aaaa1111', 'deploy.sh');
+        $this->deploy('2026-01-06 11:00:00', null, 'deploy.sh');
+        $this->deploy('2026-02-05 10:00:00', 'bbbb2222', 'deploy.sh');
+
+        $response = $this->get(route('statistiche.index', [
+            'from' => '2026-01-01',
+            'to' => '2026-01-31',
+        ]));
+        $manutenzione = $response->viewData('manutenzione');
+        $row = $manutenzione['mensili']->sole();
+
+        $this->assertSame('2026-01', $row->mese);
+        $this->assertSame(3, (int) $row->registrazioni_deploy);
+        $this->assertSame(1, (int) $row->commit_distinti);
+        $this->assertSame(2, (int) $row->giorni_con_deploy);
+        $this->assertSame(2, $manutenzione['commit_storici']);
+    }
+
+    public function test_le_label_del_grafico_sono_brevi_ma_i_tooltip_restano_completi(): void
+    {
+        $response = $this->get(route('statistiche.index', [
+            'from' => '2026-07-26',
+            'to' => '2026-08-24',
+            'group' => 'day',
+        ]));
+        $giorni = $response->viewData('statistiche');
+
+        $this->assertCount(30, $giorni);
+        $this->assertSame('26/07', $giorni->first()->axis_label);
+        $this->assertSame('26 luglio 2026', $giorni->first()->tooltip_label);
+        $this->assertSame(30, substr_count($response->getContent(), 'class="x-axis-tick'));
+
+        $pratica = Pratica::create();
+        $this->genera($pratica, 'completed', '2025-12-15 08:00:00');
+
+        $settimana = $this->get(route('statistiche.index', ['group' => 'week']))
+            ->viewData('statistiche')
+            ->first();
+        $mese = $this->get(route('statistiche.index', ['group' => 'month']))
+            ->viewData('statistiche')
+            ->first();
+
+        $this->assertSame('15–21 dic', $settimana->axis_label);
+        $this->assertSame('15–21 dic 2025', $settimana->tooltip_label);
+        $this->assertSame('2025-12', $mese->axis_label);
+        $this->assertSame('dicembre 2025', $mese->tooltip_label);
+    }
+
+    private function createDeployHistoryTable(): void
+    {
+        Schema::create('deploy_history', function (Blueprint $table): void {
+            $table->id();
+            $table->string('version', 100)->nullable();
+            $table->string('commit', 100)->nullable();
+            $table->string('mode', 20)->nullable();
+            $table->string('notes', 255)->nullable();
+            $table->timestamps();
+        });
+    }
+
+    private function deploy(?string $createdAt, ?string $commit, ?string $notes): void
+    {
+        DB::table('deploy_history')->insert([
+            'version' => 'dev',
+            'commit' => $commit,
+            'mode' => 'cloud',
+            'notes' => $notes,
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
+        ]);
     }
 
     private function genera(Pratica $pratica, string $stato, string $createdAt): void

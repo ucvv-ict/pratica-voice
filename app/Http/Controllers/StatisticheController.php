@@ -9,6 +9,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StatisticheController extends Controller
@@ -23,6 +24,7 @@ class StatisticheController extends Controller
             'statistiche' => $this->statistiche($filters),
             'heatmap' => $this->heatmap(),
             'cumulativo' => $this->cumulativo(),
+            'manutenzione' => $this->manutenzione($filters),
             'filters' => $filters,
         ]);
     }
@@ -128,6 +130,16 @@ class StatisticheController extends Controller
                 'day' => $start->format('d/m/Y'),
                 'week' => $this->weekLabel($start),
                 default => $row->periodo,
+            };
+            $row->axis_label = match ($filters['group']) {
+                'day' => $start->format('d/m'),
+                'week' => $this->weekAxisLabel($start),
+                default => $row->periodo,
+            };
+            $row->tooltip_label = match ($filters['group']) {
+                'day' => $start->locale('it')->translatedFormat('j F Y'),
+                'week' => $this->weekLabel($start),
+                default => $start->locale('it')->translatedFormat('F Y'),
             };
             $row->drill_url = $filters['group'] === 'month'
                 ? route('statistiche.index', [
@@ -296,6 +308,94 @@ class StatisticheController extends Controller
             });
     }
 
+    private function manutenzione(array $filters): array
+    {
+        if (! Schema::hasTable('deploy_history')) {
+            return [
+                'available' => false,
+                'has_data' => false,
+                'mensili' => collect(),
+            ];
+        }
+
+        $automaticDeploys = fn () => DB::table('deploy_history')
+            ->where('notes', 'deploy.sh')
+            ->whereNotNull('created_at');
+        $periodQuery = $this->applyPeriod($automaticDeploys(), $filters);
+        $today = CarbonImmutable::today();
+        $dayExpression = $this->deployDayExpression();
+        $monthExpression = $this->deployMonthExpression();
+        $commitColumn = DB::connection()->getQueryGrammar()->wrap('commit');
+
+        $ultimoDeploy = (clone $periodQuery)
+            ->select('created_at', 'commit')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($ultimoDeploy?->commit) {
+            $ultimoDeploy->commit = mb_substr($ultimoDeploy->commit, 0, 12);
+        }
+
+        $giorniUltimi90 = (clone $periodQuery)
+            ->where('created_at', '>=', $today->subDays(89)->startOfDay())
+            ->where('created_at', '<=', $today->endOfDay())
+            ->selectRaw("COUNT(DISTINCT {$dayExpression}) as totale")
+            ->first();
+
+        $mensili = (clone $periodQuery)
+            ->selectRaw("{$monthExpression} as mese")
+            ->selectRaw('COUNT(*) as registrazioni_deploy')
+            ->selectRaw("COUNT(DISTINCT CASE WHEN {$commitColumn} IS NOT NULL AND {$commitColumn} <> '' THEN {$commitColumn} END) as commit_distinti")
+            ->selectRaw("COUNT(DISTINCT {$dayExpression}) as giorni_con_deploy")
+            ->groupByRaw($monthExpression)
+            ->orderBy('mese')
+            ->get();
+
+        return [
+            'available' => true,
+            'has_data' => $mensili->isNotEmpty(),
+            'ultimo_deploy' => $ultimoDeploy,
+            'ultimi_30_giorni' => (clone $periodQuery)
+                ->where('created_at', '>=', $today->subDays(29)->startOfDay())
+                ->where('created_at', '<=', $today->endOfDay())
+                ->count(),
+            'giorni_ultimi_90' => (int) ($giorniUltimi90->totale ?? 0),
+            'commit_ultimi_90' => (clone $periodQuery)
+                ->where('created_at', '>=', $today->subDays(89)->startOfDay())
+                ->where('created_at', '<=', $today->endOfDay())
+                ->whereNotNull('commit')
+                ->where('commit', '<>', '')
+                ->distinct()
+                ->count('commit'),
+            'commit_storici' => $automaticDeploys()
+                ->whereNotNull('commit')
+                ->where('commit', '<>', '')
+                ->distinct()
+                ->count('commit'),
+            'mensili' => $mensili,
+        ];
+    }
+
+    private function deployMonthExpression(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "strftime('%Y-%m', created_at)",
+            'pgsql' => "to_char(created_at, 'YYYY-MM')",
+            'sqlsrv' => "FORMAT(created_at, 'yyyy-MM')",
+            default => "DATE_FORMAT(created_at, '%Y-%m')",
+        };
+    }
+
+    private function deployDayExpression(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "strftime('%Y-%m-%d', created_at)",
+            'pgsql' => "to_char(created_at, 'YYYY-MM-DD')",
+            'sqlsrv' => 'CONVERT(varchar(10), created_at, 23)',
+            default => "DATE_FORMAT(created_at, '%Y-%m-%d')",
+        };
+    }
+
     private function periodLabel(?CarbonImmutable $from, ?CarbonImmutable $to): string
     {
         if (! $from && ! $to) {
@@ -320,5 +420,16 @@ class StatisticheController extends Controller
         }
 
         return $start->locale('it')->translatedFormat('j M').' – '.$end->locale('it')->translatedFormat('j M Y');
+    }
+
+    private function weekAxisLabel(CarbonImmutable $start): string
+    {
+        $end = $start->addDays(6);
+
+        if ($start->month === $end->month) {
+            return $start->day.'–'.$end->locale('it')->translatedFormat('j M');
+        }
+
+        return $start->locale('it')->translatedFormat('j M').'–'.$end->locale('it')->translatedFormat('j M');
     }
 }
