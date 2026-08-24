@@ -7,6 +7,7 @@ use App\Http\Controllers\PraticaController;
 use App\Http\Controllers\AccessoAttiController;
 use App\Http\Controllers\FascicoloZipController;
 use App\Http\Controllers\InfoSistemaController;
+use App\Http\Controllers\StatisticheController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +30,12 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 
 Route::get('/dashboard/search', [DashboardController::class, 'search'])
     ->name('dashboard.search');
+
+Route::get('/statistiche', [StatisticheController::class, 'index'])
+    ->name('statistiche.index');
+
+Route::get('/statistiche/csv', [StatisticheController::class, 'csv'])
+    ->name('statistiche.csv');
 
 /*
 |--------------------------------------------------------------------------

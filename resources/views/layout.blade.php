@@ -344,6 +344,7 @@
                     {{ \App\Support\Tenant::name() }}
                 </span>
                 <a href="/voice.html" class="text-blue-600 underline">🎤 Ricerca vocale</a>
+                <a href="{{ route('statistiche.index') }}" class="text-blue-600 underline">📊 Statistiche</a>
             </div>
             <button id="themeToggle"
                     class="px-3 py-1 rounded border border-gray-200 text-sm font-medium bg-gray-50 hover:bg-gray-100 transition">
