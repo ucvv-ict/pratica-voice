@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Pratica;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -13,6 +14,8 @@ class StatisticheTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        CarbonImmutable::setTestNow('2026-08-24 12:00:00');
 
         Schema::create('pratiche', function (Blueprint $table): void {
             $table->id();
@@ -33,6 +36,7 @@ class StatisticheTest extends TestCase
     {
         Schema::dropIfExists('fascicoli_generazione');
         Schema::dropIfExists('pratiche');
+        CarbonImmutable::setTestNow();
 
         parent::tearDown();
     }
@@ -164,6 +168,61 @@ class StatisticheTest extends TestCase
         $this->assertStringContainsString('giorno,fascicoli_completati,pratiche_distinte,errori,totale_generazioni', $csv);
         $this->assertStringContainsString("2026-06-01,0,0,0,0\n2026-06-02,1,1,0,1\n2026-06-03,0,0,0,0", $csv);
         $this->assertStringNotContainsString('2026-05', $csv);
+    }
+
+    public function test_la_heatmap_copre_gli_ultimi_dodici_mesi_e_ignora_i_filtri(): void
+    {
+        $primaPratica = Pratica::create();
+        $secondaPratica = Pratica::create();
+        $this->genera($primaPratica, 'completed', '2026-07-10 08:00:00');
+        $this->genera($secondaPratica, 'completed', '2026-07-10 09:00:00');
+        $this->genera($primaPratica, 'error', '2026-07-10 10:00:00');
+
+        $response = $this->get(route('statistiche.index', [
+            'from' => '2026-01-01',
+            'to' => '2026-01-31',
+        ]));
+        $heatmap = $response->viewData('heatmap');
+        $day = $heatmap['days']->firstWhere('date', '2026-07-10');
+
+        $this->assertSame('2025-08-25', $heatmap['from']->format('Y-m-d'));
+        $this->assertSame('2026-08-24', $heatmap['to']->format('Y-m-d'));
+        $this->assertSame(365, $heatmap['days']->where('in_range', true)->count());
+        $this->assertSame(2, $day->completed);
+        $this->assertSame(2, $day->pratiche_distinte);
+        $response->assertSee('Attività giornaliera — ultimi 12 mesi');
+    }
+
+    public function test_il_grafico_cumulativo_completa_i_mesi_senza_attivita(): void
+    {
+        $pratica = Pratica::create();
+        $this->genera($pratica, 'error', '2025-12-20 08:00:00');
+        $this->genera($pratica, 'completed', '2026-01-05 08:00:00');
+        $this->genera($pratica, 'completed', '2026-01-20 08:00:00');
+        $this->genera($pratica, 'error', '2026-02-10 08:00:00');
+        $this->genera($pratica, 'completed', '2026-03-01 08:00:00');
+
+        $response = $this->get(route('statistiche.index', [
+            'from' => '2026-08-01',
+            'to' => '2026-08-24',
+        ]));
+        $cumulativo = $response->viewData('cumulativo');
+
+        $this->assertSame(
+            ['2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'],
+            $cumulativo->pluck('periodo')->all()
+        );
+        $this->assertSame([0, 2, 2, 3, 3, 3, 3, 3, 3], $cumulativo->pluck('totale')->all());
+        $response->assertSee('Fascicoli completati cumulativi');
+    }
+
+    public function test_heatmap_e_cumulativo_gestiscono_l_assenza_di_dati(): void
+    {
+        $response = $this->get(route('statistiche.index'));
+
+        $this->assertTrue($response->viewData('cumulativo')->isEmpty());
+        $this->assertSame(365, $response->viewData('heatmap')['days']->where('in_range', true)->count());
+        $response->assertOk()->assertSee('Nessun fascicolo completato disponibile.');
     }
 
     private function genera(Pratica $pratica, string $stato, string $createdAt): void

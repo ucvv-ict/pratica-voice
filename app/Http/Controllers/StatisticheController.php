@@ -21,6 +21,8 @@ class StatisticheController extends Controller
             'tenantName' => Tenant::name(),
             'riepilogo' => $this->riepilogo($filters),
             'statistiche' => $this->statistiche($filters),
+            'heatmap' => $this->heatmap(),
+            'cumulativo' => $this->cumulativo(),
             'filters' => $filters,
         ]);
     }
@@ -189,6 +191,107 @@ class StatisticheController extends Controller
                     'pratiche_distinte' => 0,
                     'errori' => 0,
                     'totale_generazioni' => 0,
+                ];
+            });
+    }
+
+    private function heatmap(): array
+    {
+        $to = CarbonImmutable::today();
+        $from = $to->subYear()->addDay();
+        $dayExpression = $this->periodExpression('day');
+        $activity = DB::table('fascicoli_generazione')
+            ->where('stato', 'completed')
+            ->where('created_at', '>=', $from->startOfDay())
+            ->where('created_at', '<=', $to->endOfDay())
+            ->selectRaw("{$dayExpression} as periodo")
+            ->selectRaw('COUNT(*) as fascicoli_completati')
+            ->selectRaw('COUNT(DISTINCT pratica_id) as pratiche_distinte')
+            ->groupByRaw($dayExpression)
+            ->get()
+            ->keyBy('periodo');
+
+        $maxCompleted = max(1, (int) $activity->max('fascicoli_completati'));
+        $gridFrom = $from->startOfWeek();
+        $gridTo = $to->endOfWeek();
+        $months = collect();
+        $lastMonth = null;
+
+        $days = collect(CarbonPeriod::create($gridFrom, $gridTo))->map(function ($day) use (
+            $activity,
+            $from,
+            $to,
+            $gridFrom,
+            $maxCompleted,
+            $months,
+            &$lastMonth
+        ): object {
+            $date = CarbonImmutable::instance($day);
+            $key = $date->format('Y-m-d');
+            $inRange = $date->betweenIncluded($from, $to);
+            $row = $activity->get($key);
+            $completed = $inRange ? (int) ($row->fascicoli_completati ?? 0) : 0;
+            $monthKey = $date->format('Y-m');
+
+            if ($inRange && $monthKey !== $lastMonth) {
+                $months->push((object) [
+                    'label' => $date->locale('it')->translatedFormat('M'),
+                    'week' => intdiv($gridFrom->diffInDays($date), 7),
+                ]);
+                $lastMonth = $monthKey;
+            }
+
+            return (object) [
+                'date' => $key,
+                'label' => $date->format('d/m/Y'),
+                'completed' => $completed,
+                'pratiche_distinte' => $inRange ? (int) ($row->pratiche_distinte ?? 0) : 0,
+                'level' => $completed === 0 ? 0 : max(1, (int) ceil(($completed / $maxCompleted) * 4)),
+                'in_range' => $inRange,
+                'weekend' => $date->isWeekend(),
+            ];
+        });
+
+        return [
+            'days' => $days,
+            'months' => $months,
+            'weeks' => intdiv($gridFrom->diffInDays($gridTo), 7) + 1,
+            'from' => $from,
+            'to' => $to,
+        ];
+    }
+
+    private function cumulativo(): Collection
+    {
+        $firstRecord = DB::table('fascicoli_generazione')
+            ->where('created_at', '<=', CarbonImmutable::today()->endOfDay())
+            ->min('created_at');
+
+        if (! $firstRecord) {
+            return collect();
+        }
+
+        $from = CarbonImmutable::parse($firstRecord)->startOfMonth();
+        $to = CarbonImmutable::today()->startOfMonth();
+        $monthExpression = $this->periodExpression('month');
+        $counts = DB::table('fascicoli_generazione')
+            ->where('stato', 'completed')
+            ->where('created_at', '<=', CarbonImmutable::today()->endOfDay())
+            ->selectRaw("{$monthExpression} as periodo")
+            ->selectRaw('COUNT(*) as completati')
+            ->groupByRaw($monthExpression)
+            ->pluck('completati', 'periodo');
+        $runningTotal = 0;
+
+        return collect(CarbonPeriod::create($from, '1 month', $to))
+            ->map(function ($month) use ($counts, &$runningTotal): object {
+                $key = $month->format('Y-m');
+                $runningTotal += (int) ($counts[$key] ?? 0);
+
+                return (object) [
+                    'periodo' => $key,
+                    'label' => $month->locale('it')->translatedFormat('M Y'),
+                    'totale' => $runningTotal,
                 ];
             });
     }
